@@ -11,7 +11,7 @@ from tqdm import tqdm
 import pandas as pd
 from datetime import datetime
 
-from models import Encoder, Classifier, Policy
+from nets import Encoder, Classifier, Policy
 from diffaug import Augmenter
 import dataset
 
