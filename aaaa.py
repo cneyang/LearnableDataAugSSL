@@ -1,3 +1,4 @@
+import os
 import torch
 from semilearn.core.algorithmbase import AlgorithmBase
 from semilearn.algorithms.hooks import PseudoLabelingHook, FixedThresholdingHook
@@ -153,6 +154,24 @@ class AAAA(AlgorithmBase):
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
         return tb_dict
+    
+    def get_save_dict(self):
+        """
+        make easier for saving model when need save additional arguments
+        """
+        # base arguments for all models
+        save_dict = {
+            'model': self.model.state_dict(),
+            'policy': self.policy.state_dict(),
+            'ema_model': self.ema_model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'scheduler': self.scheduler.state_dict(),
+            'loss_scaler': self.loss_scaler.state_dict(),
+            'it': self.it + 1,
+            'best_it': self.best_it,
+            'best_eval_acc': self.best_eval_acc,
+        }
+        return save_dict
 
     @staticmethod
     def get_argument():
