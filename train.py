@@ -15,10 +15,10 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from semilearn.algorithms import get_algorithm, name2alg
 from semilearn.imb_algorithms import get_imb_algorithm
 from semilearn.algorithms.utils import str2bool
 from semilearn.core.utils import get_net_builder, get_logger, get_port, send_model_cuda, count_parameters, over_write_args_from_file, TBLog
+from utils import get_algorithm, name2alg
 
 
 def get_config():
@@ -55,6 +55,8 @@ def get_config():
                         help='batch size of evaluation data loader (it does not affect the accuracy)')
     parser.add_argument('--ema_m', type=float, default=0.999, help='ema momentum for eval_model')
     parser.add_argument('--ulb_loss_ratio', type=float, default=1.0)
+    parser.add_argument('--d_steps', type=int, default=5, help='number of discriminator(classifier) steps per generator(policy) step')
+    parser.add_argument('--policy_loss_ratio', type=float, default=1.0)
 
     '''
     Optimizer configurations
@@ -78,7 +80,7 @@ def get_config():
     '''  
 
     ## core algorithm setting
-    parser.add_argument('-alg', '--algorithm', type=str, default='fixmatch', help='ssl algorithm')
+    parser.add_argument('-alg', '--algorithm', type=str, default='aaaa', help='ssl algorithm')
     parser.add_argument('--use_cat', type=str2bool, default=True, help='use cat operation in algorithms')
     parser.add_argument('--use_amp', type=str2bool, default=False, help='use mixed precision training or not')
     parser.add_argument('--clip_grad', type=float, default=0)
@@ -246,6 +248,10 @@ def main_worker(gpu, ngpus_per_node, args):
     model.model = send_model_cuda(args, model.model)
     model.ema_model = send_model_cuda(args, model.ema_model)
     logger.info(f"Arguments: {model.args}")
+    
+    if args.algorithm == 'aaaa':
+        model.policy = send_model_cuda(args, model.policy)
+        model.augmenter = send_model_cuda(args, model.augmenter)
 
     # If args.resume, load checkpoints from args.load_path
     if args.resume and os.path.exists(args.load_path):

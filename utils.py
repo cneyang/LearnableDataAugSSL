@@ -1,7 +1,5 @@
-import nets
+from dataset import get_cifar, get_svhn, get_stl10
 
-def get_net_builder(net_name, from_name: bool):
-    return NotImplementedError
 
 def get_dataset(args, algorithm, dataset, num_labels, num_classes, data_dir='./data', include_lb_to_ulb=True):
     """
@@ -16,19 +14,53 @@ def get_dataset(args, algorithm, dataset, num_labels, num_classes, data_dir='./d
         seed: random seed
         data_dir: data folder
     """
-    from datasets import get_cifar, get_svhn, get_stl10
 
     if dataset in ["cifar10", "cifar100"]:
-        lb_dset, ulb_dset, eval_dset = get_cifar(args, algorithm, dataset, num_labels, num_classes, data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
+        lb_dset, ulb_dset, eval_dset, mean, std = get_cifar(args, algorithm, dataset, num_labels, num_classes, data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
         test_dset = None
     elif dataset == 'svhn':
-        lb_dset, ulb_dset, eval_dset = get_svhn(args, algorithm, dataset, num_labels, num_classes, data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
+        lb_dset, ulb_dset, eval_dset, mean, std = get_svhn(args, algorithm, dataset, num_labels, num_classes, data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
         test_dset = None
     elif dataset == 'stl10':
-        lb_dset, ulb_dset, eval_dset = get_stl10(args, algorithm, dataset, num_labels, num_classes, data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
+        lb_dset, ulb_dset, eval_dset, mean, std = get_stl10(args, algorithm, dataset, num_labels, num_classes, data_dir=data_dir, include_lb_to_ulb=include_lb_to_ulb)
         test_dset = None
     else:
         raise NotImplementedError
 
-    dataset_dict = {'train_lb': lb_dset, 'train_ulb': ulb_dset, 'eval': eval_dset, 'test': test_dset}
+    dataset_dict = {'train_lb': lb_dset, 'train_ulb': ulb_dset, 'eval': eval_dset, 'test': test_dset, 'mean': mean, 'std': std}
     return dataset_dict
+
+from semilearn.algorithms import *
+from aaaa import AAAA
+
+name2alg = {
+    'fullysupervised': FullySupervised,
+    'supervised': FullySupervised,
+    'fixmatch': FixMatch,
+    'flexmatch': FlexMatch,
+    'adamatch': AdaMatch,
+    'pimodel': PiModel,
+    'meanteacher': MeanTeacher,
+    'pseudolabel': PseudoLabel,
+    'uda': UDA,
+    'vat': VAT,
+    'mixmatch': MixMatch,
+    'remixmatch': ReMixMatch,
+    'crmatch': CRMatch,
+    'comatch': CoMatch,
+    'simmatch': SimMatch,
+    'dash': Dash,
+    'aaaa': AAAA
+}
+
+def get_algorithm(args, net_builder, tb_log, logger):
+    try:
+        alg = name2alg[args.algorithm](
+            args=args,
+            net_builder=net_builder,
+            tb_log=tb_log,
+            logger=logger
+        )
+        return alg
+    except KeyError as e:
+        print(f'Unknown algorithm: {str(e)}')
