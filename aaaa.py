@@ -5,9 +5,12 @@ from semilearn.algorithms.hooks import PseudoLabelingHook, FixedThresholdingHook
 from semilearn.algorithms.utils import ce_loss, consistency_loss, SSL_Argument, str2bool
 from semilearn.core.utils import get_optimizer
 
+from torch.autograd import Variable
+
 from utils import get_dataset
 from hook import PolicyUpdateHook
 from diffaug import Augmenter
+import nets
 
 class AAAA(AlgorithmBase):
     """
@@ -32,9 +35,9 @@ class AAAA(AlgorithmBase):
     def __init__(self, args, net_builder, tb_log=None, logger=None):
         super().__init__(args, net_builder, tb_log, logger)
         # fixmatch specificed arguments
-        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio)
+        self.init(args = args, T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio)
     
-    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0):
+    def init(self, args, T, p_cutoff, hard_label=True, lambda_p=1.0):
         self.T = T
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
@@ -42,6 +45,8 @@ class AAAA(AlgorithmBase):
 
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer = self.set_policy()
+        self.args = args
+        self.discriminator, self.optimizer_D = self.set_discriminator()
     
     def set_hooks(self):
         super().set_hooks()
@@ -69,6 +74,11 @@ class AAAA(AlgorithmBase):
         mean, std = self.dataset_dict['mean'], self.dataset_dict['std']
         augmenter = Augmenter(mean, std)
         return augmenter
+
+    def set_discriminator(self):
+        discriminator = nets.Discriminator(channels=3, num_classes=self.args.num_classes, img_size=self.args.img_size)
+        optimizer = torch.optim.Adam(discriminator.parameters(), lr=self.args.lr)
+        return discriminator, optimizer
 
     def apply_augmentation(self, x, mag, requires_grad=False):
         if requires_grad:
@@ -107,8 +117,32 @@ class AAAA(AlgorithmBase):
                     outs_x_ulb_w = self.model(x_ulb_w)
                     logits_x_ulb_w = outs_x_ulb_w['logits']
 
+            ##############################
+
+            ### Added discriminator
+
+            ##############################
+
+            batch_size = x_lb.size(0)
+
+            valid = Variable(torch.cuda.FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
+            fake = Variable(torch.cuda.FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+
+            fake_pred, _ = self.discriminator(x_ulb_s)
+            discriminator_loss_for_model = ce_loss(fake_pred, valid)
+
+            real_pred, _ = self.discriminator(x_lb)
+            discriminator_loss = (ce_loss(real_pred, valid) + ce_loss(fake_pred, fake)) / 2
+
+
+            ##############################
+
+            ### Added discriminator
+
+            ##############################
+
             sup_loss = ce_loss(logits_x_lb, y_lb, reduction='mean')
-            
+
             probs_x_ulb_w = torch.softmax(logits_x_ulb_w, dim=-1)
             # if distribution alignment hook is registered, call it 
             # this is implemented for imbalanced algorithm - CReST
@@ -130,7 +164,7 @@ class AAAA(AlgorithmBase):
                                           'ce',
                                           mask=mask)
 
-            total_loss = sup_loss + self.lambda_u * unsup_loss
+            total_loss = sup_loss + self.lambda_u * unsup_loss    # add discriminator_loss_for_model
 
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
 
@@ -153,6 +187,7 @@ class AAAA(AlgorithmBase):
         tb_dict['train/unsup_loss'] = unsup_loss.item()
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
+        tb_dict['train/discriminator_loss'] = discriminator_loss.float().mean().item()
         return tb_dict
     
     def get_save_dict(self):
