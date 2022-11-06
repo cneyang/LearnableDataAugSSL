@@ -124,7 +124,7 @@ class AAAA(AlgorithmBase):
 
             ##############################
 
-            batch_size = x_lb.size(0)
+            batch_size = x_ulb_w.size(0)
 
             valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
             fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
@@ -132,7 +132,7 @@ class AAAA(AlgorithmBase):
             fake_pred, _ = self.discriminator(x_ulb_s)
             discriminator_loss_for_model = ce_loss(fake_pred, valid, reduction='mean')
 
-            real_pred, _ = self.discriminator(x_lb)
+            real_pred, _ = self.discriminator(x_ulb_w)
             discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
 
             ##############################
