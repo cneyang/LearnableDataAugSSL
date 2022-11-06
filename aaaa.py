@@ -132,6 +132,9 @@ class AAAA(AlgorithmBase):
             fake_pred, _ = self.discriminator(x_ulb_s)
             discriminator_loss_for_model = ce_loss(fake_pred, valid, reduction='mean')
 
+            self.optimizer_D.zero_grad()
+
+            fake_pred, _ = self.discriminator(x_ulb_s)
             real_pred, _ = self.discriminator(x_ulb_w)
             discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
 
@@ -164,7 +167,7 @@ class AAAA(AlgorithmBase):
                                           'ce',
                                           mask=mask)
 
-            total_loss = sup_loss + self.lambda_u * unsup_loss    # add discriminator_loss_for_model
+            total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_u * discriminator_loss_for_model    # add discriminator_loss_for_model
 
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
 
