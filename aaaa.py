@@ -8,7 +8,7 @@ from semilearn.core.utils import get_optimizer
 from torch.autograd import Variable
 
 from utils import get_dataset
-from hook import PolicyUpdateHook
+from hook import PolicyUpdateHook, DiscriminatorUpdateHook
 from diffaug import Augmenter
 import nets
 
@@ -53,6 +53,7 @@ class AAAA(AlgorithmBase):
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
         self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
+        self.register_hook(DiscriminatorUpdateHook(), "DiscriminatorUpdateHook")
 
     def set_dataset(self):
         if self.rank != 0 and self.distributed:
@@ -125,15 +126,14 @@ class AAAA(AlgorithmBase):
 
             batch_size = x_lb.size(0)
 
-            valid = Variable(torch.cuda.FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
-            fake = Variable(torch.cuda.FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+            valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
+            fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
 
             fake_pred, _ = self.discriminator(x_ulb_s)
-            discriminator_loss_for_model = ce_loss(fake_pred, valid)
+            discriminator_loss_for_model = ce_loss(fake_pred, valid, reduction='mean')
 
             real_pred, _ = self.discriminator(x_lb)
-            discriminator_loss = (ce_loss(real_pred, valid) + ce_loss(fake_pred, fake)) / 2
-
+            discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
 
             ##############################
 
@@ -180,8 +180,9 @@ class AAAA(AlgorithmBase):
                                                             'ce',
                                                             mask=mask)
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
+            self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
 
-        
+
         tb_dict = {}
         tb_dict['train/sup_loss'] = sup_loss.item()
         tb_dict['train/unsup_loss'] = unsup_loss.item()
