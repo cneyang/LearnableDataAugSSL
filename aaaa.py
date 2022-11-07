@@ -46,14 +46,16 @@ class AAAA(AlgorithmBase):
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer = self.set_policy()
         self.args = args
-        self.discriminator, self.optimizer_D = self.set_discriminator()
+        if self.args.Dnet != 'none':
+            self.discriminator, self.optimizer_D = self.set_discriminator()
     
     def set_hooks(self):
         super().set_hooks()
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
         self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
-        self.register_hook(DiscriminatorUpdateHook(), "DiscriminatorUpdateHook")
+        if self.args.Dnet != 'none':
+            self.register_hook(DiscriminatorUpdateHook(), "DiscriminatorUpdateHook")
 
     def set_dataset(self):
         if self.rank != 0 and self.distributed:
@@ -124,19 +126,21 @@ class AAAA(AlgorithmBase):
 
             ##############################
 
-            batch_size = x_ulb_w.size(0)
+            if self.args.Dnet != 'none':
 
-            valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
-            fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
+                batch_size = x_ulb_w.size(0)
 
-            fake_pred, _ = self.discriminator(x_ulb_s)
-            discriminator_loss_for_model = ce_loss(fake_pred, valid, reduction='mean')
+                valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
+                fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
 
-            self.optimizer_D.zero_grad()
+                fake_pred, _ = self.discriminator(x_ulb_s)
+                discriminator_loss_for_model = ce_loss(fake_pred, valid, reduction='mean')
 
-            fake_pred, _ = self.discriminator(x_ulb_s)
-            real_pred, _ = self.discriminator(x_ulb_w)
-            discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
+                self.optimizer_D.zero_grad()
+
+                fake_pred, _ = self.discriminator(x_ulb_s)
+                real_pred, _ = self.discriminator(x_ulb_w)
+                discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
 
             ##############################
 
@@ -167,7 +171,10 @@ class AAAA(AlgorithmBase):
                                           'ce',
                                           mask=mask)
 
-            total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_u * discriminator_loss_for_model    # add discriminator_loss_for_model
+            if self.args.Dnet != 'none':
+                total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_u * discriminator_loss_for_model    # add discriminator_loss_for_model
+            else:
+                total_loss = sup_loss + self.lambda_u * unsup_loss
 
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
 
@@ -183,7 +190,8 @@ class AAAA(AlgorithmBase):
                                                             'ce',
                                                             mask=mask)
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
-            self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
+            if self.args.Dnet != 'none':
+                self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
 
 
         tb_dict = {}
@@ -191,7 +199,8 @@ class AAAA(AlgorithmBase):
         tb_dict['train/unsup_loss'] = unsup_loss.item()
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
-        tb_dict['train/discriminator_loss'] = discriminator_loss.float().mean().item()
+        if self.args.Dnet != 'none':
+            tb_dict['train/discriminator_loss'] = discriminator_loss.float().mean().item()
         return tb_dict
     
     def get_save_dict(self):
@@ -199,17 +208,32 @@ class AAAA(AlgorithmBase):
         make easier for saving model when need save additional arguments
         """
         # base arguments for all models
-        save_dict = {
-            'model': self.model.state_dict(),
-            'policy': self.policy.state_dict(),
-            'ema_model': self.ema_model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'scheduler': self.scheduler.state_dict(),
-            'loss_scaler': self.loss_scaler.state_dict(),
-            'it': self.it + 1,
-            'best_it': self.best_it,
-            'best_eval_acc': self.best_eval_acc,
-        }
+        if self.args.Dnet != 'none':
+            save_dict = {
+                'model': self.model.state_dict(),
+                'discriminator': self.discriminator.state_dict(),
+                'policy': self.policy.state_dict(),
+                'ema_model': self.ema_model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'optimizer_D': self.optimizer_D.state_dict(),
+                'scheduler': self.scheduler.state_dict(),
+                'loss_scaler': self.loss_scaler.state_dict(),
+                'it': self.it + 1,
+                'best_it': self.best_it,
+                'best_eval_acc': self.best_eval_acc,
+            }
+        else:
+            save_dict = {
+                'model': self.model.state_dict(),
+                'policy': self.policy.state_dict(),
+                'ema_model': self.ema_model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'scheduler': self.scheduler.state_dict(),
+                'loss_scaler': self.loss_scaler.state_dict(),
+                'it': self.it + 1,
+                'best_it': self.best_it,
+                'best_eval_acc': self.best_eval_acc,
+            }
         return save_dict
 
     @staticmethod

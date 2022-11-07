@@ -257,7 +257,8 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.algorithm == 'aaaa':
         model.policy = send_model_cuda(args, model.policy)
         model.augmenter = send_model_cuda(args, model.augmenter)
-        model.discriminator = send_model_cuda(args, model.discriminator)
+        if args.Dnet != 'none':
+            model.discriminator = send_model_cuda(args, model.discriminator)
 
     # If args.resume, load checkpoints from args.load_path
     if args.resume and os.path.exists(args.load_path):
