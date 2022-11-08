@@ -78,7 +78,8 @@ def get_config():
     '''
     Backbone Net Configurations
     '''
-    parser.add_argument('--Dnet', type=str, default='sslgan')
+    parser.add_argument('--Dnet', type=str, default='none')
+    parser.add_argument('--discriminator_loss_ratio', type=float, default=1.0)
 
     '''
     Algorithms Configurations

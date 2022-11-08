@@ -48,7 +48,8 @@ class AAAA(AlgorithmBase):
         self.args = args
         if self.args.Dnet != 'none':
             self.discriminator, self.optimizer_D = self.set_discriminator()
-    
+            self.lambda_d = self.args.discriminator_loss_ratio
+
     def set_hooks(self):
         super().set_hooks()
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
@@ -104,6 +105,7 @@ class AAAA(AlgorithmBase):
         with self.amp_cm():
             with torch.no_grad():
                 mag = self.policy(x_ulb_s)['logits']
+            x_ulb_s_unaugmented = x_ulb_s
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag, requires_grad=train_policy)
 
             if self.use_cat:
@@ -139,7 +141,7 @@ class AAAA(AlgorithmBase):
                 self.optimizer_D.zero_grad()
 
                 fake_pred, _ = self.discriminator(x_ulb_s)
-                real_pred, _ = self.discriminator(x_ulb_w)
+                real_pred, _ = self.discriminator(x_ulb_s_unaugmented)
                 discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
 
             ##############################
@@ -172,7 +174,7 @@ class AAAA(AlgorithmBase):
                                           mask=mask)
 
             if self.args.Dnet != 'none':
-                total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_u * discriminator_loss_for_model    # add discriminator_loss_for_model
+                total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_d * discriminator_loss_for_model    # add discriminator_loss_for_model
             else:
                 total_loss = sup_loss + self.lambda_u * unsup_loss
 
