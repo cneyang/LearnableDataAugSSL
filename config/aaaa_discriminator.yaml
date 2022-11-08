@@ -41,5 +41,5 @@ world_size: 1
 rank: 0
 multiprocessing_distributed: False
 dist_url: tcp://127.0.0.1:10008
-dist_backend: nccl
+dist_backend: nccl
 gpu: 0
