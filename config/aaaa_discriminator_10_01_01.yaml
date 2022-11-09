@@ -2,9 +2,9 @@ algorithm: aaaa
 Dnet: sslgan
 discriminator_loss_ratio: 0.1
 policy_loss_ratio: 0.1
-d_steps: 20
+d_steps: 10
 save_dir: ./saved_models
-save_name: aaaa_D_cifar10_250_20_01_01
+save_name: aaaa_D_cifar10_250_10_01_01
 resume: False
 overwrite: True
 use_tensorboard: True
