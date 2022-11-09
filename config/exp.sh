@@ -13,11 +13,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -61,11 +58,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -109,11 +103,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -158,11 +149,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -207,11 +195,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -256,11 +241,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -305,11 +287,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
@@ -354,11 +333,8 @@ python train.py \
     --num_train_iter 50000 \
     --num_eval_iter 100 \
     --num_labels 250 \
-    --batch_size 8 \
-    --eval_batch_size 16 \
-    --hard_label True \
-    --T 0.5 \
-    --p_cutoff 0.95 \
+    --batch_size 64 \
+    --eval_batch_size 256 \
     --ulb_loss_ratio 1.0 \
     --uratio 7 \
     --ema_m 0.999 \
