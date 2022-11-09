@@ -31,22 +31,22 @@ def get_cifar(args, alg, name, num_labels, num_classes, data_dir='./data', inclu
     crop_size = args.img_size
     crop_ratio = args.crop_ratio
 
-    # transform_weak = transforms.Compose([
-    #     transforms.Resize(crop_size),
-    #     transforms.RandomCrop(crop_size, padding=int(crop_size * (1 - crop_ratio)), padding_mode='reflect'),
-    #     transforms.RandomHorizontalFlip(),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize(mean[name], std[name])
-    # ])
+    transform_weak = transforms.Compose([
+        transforms.Resize(crop_size),
+        transforms.RandomCrop(crop_size, padding=int(crop_size * (1 - crop_ratio)), padding_mode='reflect'),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean[name], std[name])
+    ])
 
-    # transform_strong = transforms.Compose([
-    #     transforms.Resize(crop_size),
-    #     transforms.RandomCrop(crop_size, padding=int(crop_size * (1 - crop_ratio)), padding_mode='reflect'),
-    #     transforms.RandomHorizontalFlip(),
-    #     RandAugment(3, 5),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize(mean[name], std[name])
-    # ])
+    transform_strong = transforms.Compose([
+        transforms.Resize(crop_size),
+        transforms.RandomCrop(crop_size, padding=int(crop_size * (1 - crop_ratio)), padding_mode='reflect'),
+        transforms.RandomHorizontalFlip(),
+        RandAugment(3, 5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean[name], std[name])
+    ])
 
     transform_val = transforms.Compose([
         transforms.Resize(crop_size),
@@ -98,10 +98,14 @@ def get_cifar(args, alg, name, num_labels, num_classes, data_dir='./data', inclu
     #     os.makedirs(output_file, exist_ok=True)
     # with open(output_path, 'w') as w:
     #     json.dump(out, w)
+    if alg == 'supervised' and args.strongAug:
+        lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_strong, False, None, False)
 
-    lb_dset = NonAugmentedDataset(alg, lb_data, lb_targets, num_classes, False, False)
+        ulb_dset = BasicDataset(alg, ulb_data, ulb_targets, num_classes, transform_weak, True, transform_strong, False)
+    else:
+        lb_dset = NonAugmentedDataset(alg, lb_data, lb_targets, num_classes, False, False)
 
-    ulb_dset = NonAugmentedDataset(alg, ulb_data, ulb_targets, num_classes, True, False)
+        ulb_dset = NonAugmentedDataset(alg, ulb_data, ulb_targets, num_classes, True, False)
 
     dset = getattr(torchvision.datasets, name.upper())
     dset = dset(data_dir, train=False, download=True)
