@@ -47,7 +47,7 @@ class AAAA(AlgorithmBase):
         self.policy, self.policy_optimizer = self.set_policy()
         self.args = args
         if self.args.Dnet != 'none':
-            self.discriminator, self.optimizer_D = self.set_discriminator()
+            self.discriminator, self.optimizer_D, self.criteria_D = self.set_discriminator()
             self.lambda_d = self.args.discriminator_loss_ratio
 
     def set_hooks(self):
@@ -82,7 +82,8 @@ class AAAA(AlgorithmBase):
     def set_discriminator(self):
         discriminator = nets.Discriminator(channels=3, num_classes=self.args.num_classes, img_size=self.args.img_size)
         optimizer = torch.optim.Adam(discriminator.parameters(), lr=self.args.lr)
-        return discriminator, optimizer
+        criteria = torch.nn.BCELoss()
+        return discriminator, optimizer, criteria
 
     def apply_augmentation(self, x, mag, requires_grad=False):
         if requires_grad:
@@ -136,13 +137,15 @@ class AAAA(AlgorithmBase):
                 fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
 
                 fake_pred, _ = self.discriminator(x_ulb_s)
-                discriminator_loss_for_model = ce_loss(fake_pred, valid, reduction='mean')
+
+                discriminator_loss_for_model = self.criteria_D(fake_pred, valid)
 
                 self.optimizer_D.zero_grad()
 
                 fake_pred, _ = self.discriminator(x_ulb_s)
                 real_pred, _ = self.discriminator(x_ulb_s_unaugmented)
-                discriminator_loss = ce_loss(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)), reduction='mean')
+
+                discriminator_loss = self.criteria_D(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)))
 
             ##############################
 
@@ -202,7 +205,7 @@ class AAAA(AlgorithmBase):
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
         if self.args.Dnet != 'none':
-            tb_dict['train/discriminator_loss'] = discriminator_loss.float().mean().item()
+            tb_dict['train/discriminator_loss'] = discriminator_loss.item()
         return tb_dict
     
     def get_save_dict(self):

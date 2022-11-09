@@ -11,8 +11,10 @@ epoch: 1024
 num_train_iter: 1048576
 num_eval_iter: 100
 num_labels: 250
-batch_size: 64
-eval_batch_size: 256
+# batch_size: 64
+# eval_batch_size: 256
+batch_size: 8
+eval_batch_size: 16
 hard_label: True
 T: 0.5
 p_cutoff: 0.95
