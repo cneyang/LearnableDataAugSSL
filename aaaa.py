@@ -3,7 +3,7 @@ import torch
 from semilearn.core.algorithmbase import AlgorithmBase
 from semilearn.algorithms.hooks import PseudoLabelingHook, FixedThresholdingHook
 from semilearn.algorithms.utils import ce_loss, consistency_loss, SSL_Argument, str2bool
-from semilearn.core.utils import get_optimizer
+from semilearn.core.utils import get_optimizer, get_cosine_schedule_with_warmup
 
 from utils import get_dataset
 from hook import PolicyUpdateHook
@@ -41,7 +41,7 @@ class AAAA(AlgorithmBase):
         self.lambda_p = lambda_p
 
         self.augmenter = self.set_augmenter()
-        self.policy, self.policy_optimizer = self.set_policy()
+        self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
     
     def set_hooks(self):
         super().set_hooks()
@@ -63,7 +63,10 @@ class AAAA(AlgorithmBase):
     def set_policy(self):
         policy = self.net_builder(num_classes=len(self.augmenter.operations))
         optimizer = get_optimizer(policy)
-        return policy, optimizer
+        scheduler = get_cosine_schedule_with_warmup(optimizer,
+                                                    self.num_train_iter // self.args.d_steps,
+                                                    self.args.num_warmup_iter)
+        return policy, optimizer, scheduler
 
     def set_augmenter(self):
         mean, std = self.dataset_dict['mean'], self.dataset_dict['std']

@@ -13,4 +13,5 @@ class PolicyUpdateHook(Hook):
             loss.backward()
             algorithm.policy_optimizer.step()
 
+        algorithm.policy_scheduler.step()
         algorithm.policy_optimizer.zero_grad()
