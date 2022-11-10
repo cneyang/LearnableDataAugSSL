@@ -170,6 +170,7 @@ def get_cifar(args, alg, name, num_labels, num_classes, data_dir='./data', inclu
         lb_data = data
         lb_targets = targets
     if alg == 'supervised' and args.strongAug:
+        print("Used StrongAug for labeled dataset")
         lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_strong_rand, False, None, False)
     else:
         lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_weak, False, None, False)
