@@ -32,10 +32,11 @@ def get_dataset(args, algorithm, dataset, num_labels, num_classes, data_dir='./d
 
 from semilearn.algorithms import *
 from aaaa import AAAA
+from supervised import Supervised
 
 name2alg = {
     'fullysupervised': FullySupervised,
-    'supervised': FullySupervised,
+    'supervised': Supervised,
     'fixmatch': FixMatch,
     'flexmatch': FlexMatch,
     'adamatch': AdaMatch,
