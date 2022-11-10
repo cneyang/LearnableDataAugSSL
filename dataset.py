@@ -5,7 +5,8 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 from PIL import Image
 from semilearn.datasets.augmentation import RandAugment, RandomResizedCropAndInterpolation
-from semilearn.datasets.utils import get_onehot, split_ssl_data
+from semilearn.datasets.utils import get_onehot
+from datasets.utils import split_ssl_data
 
 
 class BasicDataset(Dataset):
