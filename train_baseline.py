@@ -160,7 +160,10 @@ def main(args):
 
     assert args.num_train_iter % args.epoch == 0, \
         f"# total training iter. {args.num_train_iter} is not divisible by # epochs {args.epoch}"
-
+    if args.strongAug:
+        print("Use strongAug")
+        args.save_name += "_strongAug"
+        print(f"Redirect Save Name to {args.save_name}")
     save_path = os.path.join(args.save_dir, args.save_name)
     if os.path.exists(save_path) and args.overwrite and args.resume == False:
         import shutil
@@ -202,6 +205,7 @@ def main(args):
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
     else:
         main_worker(args.gpu, ngpus_per_node, args)
+
 
 
 def main_worker(gpu, ngpus_per_node, args):
