@@ -130,14 +130,14 @@ def get_cifar(args, alg, name, num_labels, num_classes, data_dir='./data', inclu
         transforms.Normalize(mean[name], std[name])
     ])
 
-    # transform_strong = transforms.Compose([
-    #     transforms.Resize(crop_size),
-    #     transforms.RandomCrop(crop_size, padding=int(crop_size * (1 - crop_ratio)), padding_mode='reflect'),
-    #     transforms.RandomHorizontalFlip(),
-    #     RandAugment(3, 5),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize(mean[name], std[name])
-    # ])
+    transform_strong_rand = transforms.Compose([
+        transforms.Resize(crop_size),
+        transforms.RandomCrop(crop_size, padding=int(crop_size * (1 - crop_ratio)), padding_mode='reflect'),
+        transforms.RandomHorizontalFlip(),
+        RandAugment(3, 5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean[name], std[name])
+    ])
     transform_strong = transforms.Compose([
         transforms.Resize(crop_size),
         transforms.ToTensor(),
@@ -169,8 +169,10 @@ def get_cifar(args, alg, name, num_labels, num_classes, data_dir='./data', inclu
     if alg == 'fullysupervised':
         lb_data = data
         lb_targets = targets
-
-    lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_weak, False, None, False)
+    if alg == 'supervised' and args.strongAug:
+        lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_strong_rand, False, None, False)
+    else:
+        lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_weak, False, None, False)
 
     ulb_dset = BasicDataset(alg, ulb_data, ulb_targets, num_classes, transform_weak, True, transform_strong, False)
 
