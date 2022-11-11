@@ -1,0 +1,6 @@
+[2022-11-10 07:15:22,553 INFO] Use GPU: 0 for training
+[2022-11-10 07:15:24,503 INFO] unlabeled data number: 50000, labeled data number 250
+[2022-11-10 07:15:24,503 INFO] Create train and test data loaders
+[2022-11-10 07:15:24,504 INFO] [!] data loader keys: dict_keys(['train_lb', 'train_ulb', 'eval'])
+[2022-11-10 07:15:24,593 INFO] Create optimizer and scheduler
+[2022-11-10 07:15:24,641 INFO] Number of Trainable Params: 1469642

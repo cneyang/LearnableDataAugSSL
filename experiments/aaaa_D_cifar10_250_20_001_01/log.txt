@@ -1,0 +1,54 @@
+[2022-11-10 22:34:01,452 INFO] Use GPU: 0 for training
+[2022-11-10 22:34:03,384 INFO] unlabeled data number: 50000, labeled data number 250
+[2022-11-10 22:34:03,384 INFO] Create train and test data loaders
+[2022-11-10 22:34:03,385 INFO] [!] data loader keys: dict_keys(['train_lb', 'train_ulb', 'eval'])
+[2022-11-10 22:34:03,463 INFO] Create optimizer and scheduler
+[2022-11-10 22:34:03,496 INFO] Number of Trainable Params: 1469642
+[2022-11-10 22:34:05,119 INFO] Arguments: Namespace(Dnet='sslgan', T=0.5, algorithm='aaaa', amp=False, batch_size=64, c='config/aaaa_discriminator_20_001_01.yaml', clip=0.0, clip_grad=0, crop_ratio=0.875, d_steps=20, data_dir='./data', dataset='cifar10', discriminator_loss_ratio=0.1, dist_backend='nccl', dist_url='tcp://127.0.0.1:18449', distributed=False, ema_m=0.999, epoch=1024, eval_batch_size=256, gpu=0, hard_label=True, imb_algorithm=None, img_size=32, layer_decay=1.0, lb_dest_len=250, lb_imb_ratio=1, load_path=None, lr=0.03, momentum=0.9, multiprocessing_distributed=False, net='wrn_28_2', net_from_name=False, num_classes=10, num_eval_iter=100, num_labels=250, num_log_iter=100, num_train_iter=65536, num_warmup_iter=0, num_workers=1, optim='SGD', overwrite=True, p_cutoff=0.95, policy_loss_ratio=0.01, pretrain_path='', rank=0, resume=False, save_dir='./saved_models', save_name='aaaa_D_cifar10_250_20_001_01', seed=0, train_sampler='RandomSampler', ulb_dest_len=50000, ulb_imb_ratio=1, ulb_loss_ratio=1.0, ulb_num_labels=None, uratio=7, use_amp=False, use_cat=True, use_pretrain=False, use_tensorboard=True, weight_decay=0.0005, world_size=1)
+[2022-11-10 22:34:05,126 INFO] Resume load path None does not exist
+[2022-11-10 22:34:05,126 INFO] Model training
+[2022-11-10 22:35:05,174 INFO] validating...
+[2022-11-10 22:35:08,036 INFO] confusion matrix:
+[[1.    0.    0.    0.    0.    0.    0.    0.    0.    0.   ]
+ [1.    0.    0.    0.    0.    0.    0.    0.    0.    0.   ]
+ [0.993 0.    0.    0.007 0.    0.    0.    0.    0.    0.   ]
+ [1.    0.    0.    0.    0.    0.    0.    0.    0.    0.   ]
+ [0.997 0.    0.    0.003 0.    0.    0.    0.    0.    0.   ]
+ [0.996 0.    0.    0.004 0.    0.    0.    0.    0.    0.   ]
+ [1.    0.    0.    0.    0.    0.    0.    0.    0.    0.   ]
+ [0.999 0.    0.    0.001 0.    0.    0.    0.    0.    0.   ]
+ [1.    0.    0.    0.    0.    0.    0.    0.    0.    0.   ]
+ [1.    0.    0.    0.    0.    0.    0.    0.    0.    0.   ]]
+[2022-11-10 22:35:08,116 INFO] model saved: ./saved_models/aaaa_D_cifar10_250_20_001_01/latest_model.pth
+[2022-11-10 22:35:08,190 INFO] model saved: ./saved_models/aaaa_D_cifar10_250_20_001_01/model_best.pth
+[2022-11-10 22:35:08,191 INFO] 100 iteration, USE_EMA: True, {'train/sup_loss': 0.43107131123542786, 'train/unsup_loss': 0.18908105790615082, 'train/total_loss': 0.7363958358764648, 'train/mask_ratio': 0.0625, 'train/discriminator_loss': 0.9116132855415344, 'lr': 0.02999993402383028, 'train/prefecth_time': 0.019629568099975587, 'train/run_time': 0.5047091064453125, 'eval/loss': 4.196487477111816, 'eval/top-1-acc': 0.1, 'eval/balanced_acc': 0.1, 'eval/precision': 0.0100150225338007, 'eval/recall': 0.1, 'eval/F1': 0.018206645425580335}, BEST_EVAL_ACC: 0.1, at 100 iters
+[2022-11-10 22:36:04,257 INFO] validating...
+[2022-11-10 22:36:07,023 INFO] confusion matrix:
+[[0.987 0.    0.001 0.012 0.    0.    0.    0.    0.    0.   ]
+ [0.989 0.    0.    0.011 0.    0.    0.    0.    0.    0.   ]
+ [0.9   0.    0.002 0.094 0.003 0.001 0.    0.    0.    0.   ]
+ [0.959 0.    0.    0.041 0.    0.    0.    0.    0.    0.   ]
+ [0.869 0.    0.001 0.127 0.002 0.001 0.    0.    0.    0.   ]
+ [0.964 0.    0.    0.034 0.    0.002 0.    0.    0.    0.   ]
+ [0.836 0.    0.    0.163 0.001 0.    0.    0.    0.    0.   ]
+ [0.966 0.    0.001 0.032 0.    0.001 0.    0.    0.    0.   ]
+ [0.991 0.    0.    0.009 0.    0.    0.    0.    0.    0.   ]
+ [0.993 0.    0.    0.007 0.    0.    0.    0.    0.    0.   ]]
+[2022-11-10 22:36:07,142 INFO] model saved: ./saved_models/aaaa_D_cifar10_250_20_001_01/latest_model.pth
+[2022-11-10 22:36:07,256 INFO] model saved: ./saved_models/aaaa_D_cifar10_250_20_001_01/model_best.pth
+[2022-11-10 22:36:07,257 INFO] 200 iteration, USE_EMA: True, {'train/sup_loss': 0.07699602097272873, 'train/unsup_loss': 0.32209914922714233, 'train/total_loss': 0.4776950478553772, 'train/mask_ratio': 0.1875000149011612, 'train/discriminator_loss': 0.6882646083831787, 'lr': 0.029999736095611323, 'train/prefecth_time': 0.020026464462280274, 'train/run_time': 0.5043736267089843, 'eval/loss': 2.70980252494812, 'eval/top-1-acc': 0.1034, 'eval/balanced_acc': 0.1034, 'eval/precision': 0.13150920777601707, 'eval/recall': 0.1034, 'eval/F1': 0.0254358356548471}, BEST_EVAL_ACC: 0.1034, at 200 iters
+[2022-11-10 22:37:02,639 INFO] validating...
+[2022-11-10 22:37:05,361 INFO] confusion matrix:
+[[0.855 0.    0.036 0.07  0.036 0.003 0.    0.    0.    0.   ]
+ [0.785 0.    0.022 0.145 0.033 0.015 0.    0.    0.    0.   ]
+ [0.497 0.    0.083 0.161 0.242 0.017 0.    0.    0.    0.   ]
+ [0.597 0.    0.026 0.229 0.115 0.033 0.    0.    0.    0.   ]
+ [0.317 0.    0.062 0.206 0.398 0.017 0.    0.    0.    0.   ]
+ [0.625 0.    0.044 0.216 0.092 0.023 0.    0.    0.    0.   ]
+ [0.268 0.    0.038 0.3   0.352 0.041 0.001 0.    0.    0.   ]
+ [0.594 0.    0.066 0.204 0.126 0.01  0.    0.    0.    0.   ]
+ [0.899 0.    0.032 0.048 0.02  0.001 0.    0.    0.    0.   ]
+ [0.832 0.    0.016 0.115 0.032 0.005 0.    0.    0.    0.   ]]
+[2022-11-10 22:37:05,576 INFO] model saved: ./saved_models/aaaa_D_cifar10_250_20_001_01/latest_model.pth
+[2022-11-10 22:37:05,688 INFO] model saved: ./saved_models/aaaa_D_cifar10_250_20_001_01/model_best.pth
+[2022-11-10 22:37:05,688 INFO] 300 iteration, USE_EMA: True, {'train/sup_loss': 0.021786874160170555, 'train/unsup_loss': 0.35448771715164185, 'train/total_loss': 0.4830036461353302, 'train/mask_ratio': 0.2366071492433548, 'train/discriminator_loss': 0.49702849984169006, 'lr': 0.029999406216213696, 'train/prefecth_time': 0.019594751358032226, 'train/run_time': 0.5039248962402344, 'eval/loss': 2.322377199935913, 'eval/top-1-acc': 0.1589, 'eval/balanced_acc': 0.15889999999999999, 'eval/precision': 0.18814984913058458, 'eval/recall': 0.15889999999999999, 'eval/F1': 0.08886564681464171}, BEST_EVAL_ACC: 0.1589, at 300 iters
