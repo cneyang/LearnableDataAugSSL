@@ -3,7 +3,7 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 from .wideresnet import WideResNet
-
+from .vggperceptualloss import *
 
 class Encoder(nn.Module):
     def __init__(self, model_name="wresnet40_2", dropout_rate=0.0):

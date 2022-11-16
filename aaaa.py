@@ -8,6 +8,7 @@ from semilearn.core.utils import get_optimizer, get_cosine_schedule_with_warmup
 from utils import get_dataset
 from hook import PolicyUpdateHook
 from diffaug import Augmenter
+from nets import VGGPerceptualLoss
 
 class AAAA(AlgorithmBase):
     """
@@ -32,9 +33,9 @@ class AAAA(AlgorithmBase):
     def __init__(self, args, net_builder, tb_log=None, logger=None):
         super().__init__(args, net_builder, tb_log, logger)
         # fixmatch specificed arguments
-        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio)
+        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio, lambda_perceptual = args.perceptual_loss_ratio)
     
-    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0):
+    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0, lambda_perceptual = 1.0):
         self.T = T
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
@@ -42,6 +43,8 @@ class AAAA(AlgorithmBase):
 
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
+        self.perceptual_loss = self.set_perceptual_loss()
+        self.lambda_perceptual = lambda_perceptual
     
     def set_hooks(self):
         super().set_hooks()
@@ -73,6 +76,9 @@ class AAAA(AlgorithmBase):
         augmenter = Augmenter(mean, std)
         return augmenter
 
+    def set_perceptual_loss(self):
+        return VGGPerceptualLoss()
+
     def apply_augmentation(self, x, mag, requires_grad=False):
         if requires_grad:
             return self.augmenter(x, mag)
@@ -94,7 +100,11 @@ class AAAA(AlgorithmBase):
         with self.amp_cm():
             with torch.no_grad():
                 mag = self.policy(x_ulb_s)['logits']
+            x_ulb_s_orig = x_ulb_s
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag, requires_grad=train_policy)
+
+            with torch.no_grad():
+                perceptual_loss = self.perceptual_loss(x_ulb_s, x_ulb_s_orig)
 
             if self.use_cat:
                 inputs = torch.cat((x_lb, x_ulb_w, x_ulb_s))
@@ -133,7 +143,7 @@ class AAAA(AlgorithmBase):
                                           'ce',
                                           mask=mask)
 
-            total_loss = sup_loss + self.lambda_u * unsup_loss
+            total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_perceptual * perceptual_loss
 
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
 
@@ -156,6 +166,7 @@ class AAAA(AlgorithmBase):
         tb_dict['train/unsup_loss'] = unsup_loss.item()
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
+        tb_dict['train/perceptual_loss'] = perceptual_loss.item()
         return tb_dict
     
     def get_save_dict(self):
