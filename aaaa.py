@@ -177,7 +177,7 @@ class AAAA(AlgorithmBase):
                                           mask=mask)
 
             if self.args.Dnet != 'none':
-                total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_d * discriminator_loss_for_model    # add discriminator_loss_for_model
+                total_loss = sup_loss + self.lambda_u * unsup_loss
             else:
                 total_loss = sup_loss + self.lambda_u * unsup_loss
 
@@ -193,7 +193,8 @@ class AAAA(AlgorithmBase):
             policy_loss = -self.lambda_p * consistency_loss(logits_x_ulb_s,
                                                             pseudo_label,
                                                             'ce',
-                                                            mask=mask)
+                                                            mask=mask) \
+                          + self.lambda_d * discriminator_loss_for_model    # add discriminator_loss_for_model
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
             if self.args.Dnet != 'none':
                 self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
