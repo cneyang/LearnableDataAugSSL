@@ -99,10 +99,12 @@ def get_cifar(args, alg, name, num_labels, num_classes, data_dir='./data', inclu
     # with open(output_path, 'w') as w:
     #     json.dump(out, w)
     if alg == 'supervised' and args.strongAug:
+        print("Perform Strong Aug on labeled data")
         lb_dset = BasicDataset(alg, lb_data, lb_targets, num_classes, transform_strong, False, None, False)
 
         ulb_dset = BasicDataset(alg, ulb_data, ulb_targets, num_classes, transform_weak, True, transform_strong, False)
     else:
+        print("Using Non-Augment Dataset")
         lb_dset = NonAugmentedDataset(alg, lb_data, lb_targets, num_classes, False, False)
 
         ulb_dset = NonAugmentedDataset(alg, ulb_data, ulb_targets, num_classes, True, False)
