@@ -29,6 +29,7 @@ from .functional import (
     sample_pairing,
     equalize,
     sharpness,
+    cutout,
 )
 from .kernels import get_sharpness_kernel
 
@@ -52,6 +53,7 @@ __all__ = [
     "SamplePairing",
     "Equalize",
     "Sharpness",
+    "cutout",
 ]
 
 
@@ -707,3 +709,26 @@ class Sharpness(_KernelOperation):
             debug=debug,
         )
 
+class Cutout(_Operation):
+    def __init__(
+        self,
+        requires_magnitude: bool = True,
+        requires_probability: bool = False,
+        initial_magnitude: float = 0.5,
+        initial_probability: float = 0.5,
+        magnitude_range: Optional[Tuple[float, float]] = (0, 1),
+        probability_range: Optional[Tuple[float, float]] = (0, 1),
+        temperature: float = 0.1,
+        debug: bool = False,
+    ):
+        super(Cutout, self).__init__(
+            cutout,
+            requires_magnitude,
+            requires_probability,
+            initial_magnitude,
+            initial_probability,
+            magnitude_range,
+            probability_range,
+            temperature,
+            debug=debug,
+        )
