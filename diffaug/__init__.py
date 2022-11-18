@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from .operations import *
-
+from .operations import Cutout
 
 class Augmenter(nn.Module):
     def __init__(self, mean, std, before_ops=None, after_ops=None):
