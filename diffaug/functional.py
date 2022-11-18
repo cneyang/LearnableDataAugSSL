@@ -305,11 +305,10 @@ def cutout(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     num, channels, h, w = img.shape
     new_image = img
     # The size of mask to apply
-    # np.random.randint(h)
     size = np.random.randint(h//2) #mag*np.random.randint(h)
     y = np.random.randint(h)
     x = np.random.randint(w)
-    print("y-size/2 ",y + size // 2)
+    # print("y-size/2 ",y + size // 2)
     y1 = max(0, y - size // 2)
     y2 = min(h, y + size // 2)
     x1 = max(0, x - size // 2)
