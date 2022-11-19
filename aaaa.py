@@ -194,7 +194,7 @@ class AAAA(AlgorithmBase):
                                                             pseudo_label,
                                                             'ce',
                                                             mask=mask) \
-                          + self.lambda_d * discriminator_loss_for_model    # add discriminator_loss_for_model
+                          - self.lambda_d * discriminator_loss_for_model    # add discriminator_loss_for_model
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
             if self.args.Dnet != 'none':
                 self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
