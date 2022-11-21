@@ -143,7 +143,7 @@ class AAAA(AlgorithmBase):
                                           'ce',
                                           mask=mask)
 
-            total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_perceptual * perceptual_loss
+            total_loss = sup_loss + self.lambda_u * unsup_loss
 
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
 
@@ -157,7 +157,8 @@ class AAAA(AlgorithmBase):
             policy_loss = -self.lambda_p * consistency_loss(logits_x_ulb_s,
                                                             pseudo_label,
                                                             'ce',
-                                                            mask=mask)
+                                                            mask=mask) \
+                        - self.lambda_perceptual * perceptual_loss
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
 
         
