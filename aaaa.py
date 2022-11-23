@@ -11,7 +11,7 @@ from utils import get_dataset
 from hook import PolicyUpdateHook, DiscriminatorUpdateHook
 from diffaug import Augmenter
 import nets
-from nets import VGGPerceptualLoss
+from nets import VGGPerceptualLoss, WRNPerceptualLoss
 
 class AAAA(AlgorithmBase):
     """
@@ -36,7 +36,8 @@ class AAAA(AlgorithmBase):
     def __init__(self, args, net_builder, tb_log=None, logger=None):
         super().__init__(args, net_builder, tb_log, logger)
         # fixmatch specificed arguments
-        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio, lambda_perceptual = args.perceptual_loss_ratio)
+        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio,
+                  lambda_perceptual=args.perceptual_loss_ratio, perceptual_loss=args.perceptual_loss)
     
     def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0, lambda_perceptual = 1.0):
         self.T = T
@@ -46,7 +47,7 @@ class AAAA(AlgorithmBase):
 
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
-        self.perceptual_loss = self.set_perceptual_loss()
+        self.perceptual_loss = self.set_perceptual_loss(perceptual_loss)
         self.lambda_perceptual = lambda_perceptual
 
     def set_hooks(self):
@@ -79,8 +80,14 @@ class AAAA(AlgorithmBase):
         augmenter = Augmenter(mean, std)
         return augmenter
 
-    def set_perceptual_loss(self):
-        return VGGPerceptualLoss()
+    def set_perceptual_loss(self, perceptual_loss):
+        print(f"Perceptual Loss: {perceptual_loss}")
+        if perceptual_loss == "vgg":
+            return VGGPerceptualLoss()
+        elif perceptual_loss == "wrn":
+            return WRNPerceptualLoss()
+        else:
+            raise NotImplementedError("Chosen Perceptual Loss not Implemented or Typo!")
 
     def apply_augmentation(self, x, mag, requires_grad=False):
         if requires_grad:

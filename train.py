@@ -58,6 +58,7 @@ def get_config():
     parser.add_argument('--d_steps', type=int, default=5, help='number of discriminator(classifier) steps per generator(policy) step')
     parser.add_argument('--policy_loss_ratio', type=float, default=1.0)
     parser.add_argument('--perceptual_loss_ratio', type=float, default=1.0)
+    parser.add_argument('--perceptual_loss', type=str, default='wrn')
 
     '''
     Optimizer configurations
