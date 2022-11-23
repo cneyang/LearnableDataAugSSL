@@ -39,7 +39,7 @@ class AAAA(AlgorithmBase):
         self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio,
                   lambda_perceptual=args.perceptual_loss_ratio, perceptual_loss=args.perceptual_loss)
     
-    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0, lambda_perceptual = 1.0):
+    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0, lambda_perceptual = 1.0, perceptual_loss='wrn'):
         self.T = T
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
