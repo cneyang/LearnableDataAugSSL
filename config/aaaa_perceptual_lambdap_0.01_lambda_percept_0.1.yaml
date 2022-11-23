@@ -6,7 +6,7 @@ resume: False
 overwrite: True
 use_tensorboard: True
 perceptual_loss_ratio: 0.01
-policy_loss_ratio: 0.01
+policy_loss_ratio: 0.1
 epoch: 1024
 num_train_iter: 1048576
 num_eval_iter: 100
