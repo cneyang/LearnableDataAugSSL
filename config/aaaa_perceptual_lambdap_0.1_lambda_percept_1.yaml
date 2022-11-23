@@ -1,6 +1,6 @@
 algorithm: aaaa
 save_dir: ./saved_models
-save_name: aaaa_cifar10_250_01_1
+save_name: aaaa_cifar10_250_01_1_wrn
 resume: False
 # load_path: ./saved_models/aaaa_cifar10_250_0/latest_model.pth
 overwrite: True
@@ -9,7 +9,7 @@ perceptual_loss_ratio: 1
 policy_loss_ratio: 0.1
 epoch: 1024
 num_train_iter: 1048576
-num_eval_iter: 100
+num_eval_iter: 500
 num_labels: 250
 batch_size: 4
 eval_batch_size: 16
