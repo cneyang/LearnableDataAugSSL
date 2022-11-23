@@ -179,12 +179,7 @@ class AAAA(AlgorithmBase):
         tb_dict['train/unsup_loss'] = unsup_loss.item()
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
-<<<<<<< HEAD
-        if self.args.Dnet != 'none':
-            tb_dict['train/discriminator_loss'] = discriminator_loss.item()
-=======
         tb_dict['train/perceptual_loss'] = perceptual_loss.item()
->>>>>>> jack-perceptual-loss
         return tb_dict
     
     def get_save_dict(self):
