@@ -8,7 +8,7 @@ from semilearn.core.utils import get_optimizer, get_cosine_schedule_with_warmup
 from torch.autograd import Variable
 
 from utils import get_dataset
-from hook import PolicyUpdateHook, DiscriminatorUpdateHook
+from hook import PolicyUpdateHook
 from diffaug import Augmenter
 import nets
 from nets import VGGPerceptualLoss, WRNPerceptualLoss
