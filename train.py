@@ -57,6 +57,7 @@ def get_config():
     parser.add_argument('--ulb_loss_ratio', type=float, default=1.0)
     parser.add_argument('--d_steps', type=int, default=5, help='number of discriminator(classifier) steps per generator(policy) step')
     parser.add_argument('--policy_loss_ratio', type=float, default=1.0)
+    parser.add_argument('--perceptual_loss_ratio', type=float, default=1.0)
 
     '''
     Optimizer configurations
@@ -258,8 +259,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.algorithm == 'aaaa':
         model.policy = send_model_cuda(args, model.policy)
         model.augmenter = send_model_cuda(args, model.augmenter)
-        if args.Dnet != 'none':
-            model.discriminator = send_model_cuda(args, model.discriminator)
+        model.perceptual_loss = send_model_cuda(args, model.perceptual_loss)
 
     # If args.resume, load checkpoints from args.load_path
     if args.resume and os.path.exists(args.load_path):

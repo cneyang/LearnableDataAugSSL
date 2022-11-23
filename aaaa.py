@@ -3,7 +3,7 @@ import torch
 from semilearn.core.algorithmbase import AlgorithmBase
 from semilearn.algorithms.hooks import PseudoLabelingHook, FixedThresholdingHook
 from semilearn.algorithms.utils import ce_loss, consistency_loss, SSL_Argument, str2bool
-from semilearn.core.utils import get_optimizer
+from semilearn.core.utils import get_optimizer, get_cosine_schedule_with_warmup
 
 from torch.autograd import Variable
 
@@ -11,6 +11,7 @@ from utils import get_dataset
 from hook import PolicyUpdateHook, DiscriminatorUpdateHook
 from diffaug import Augmenter
 import nets
+from nets import VGGPerceptualLoss
 
 class AAAA(AlgorithmBase):
     """
@@ -35,28 +36,24 @@ class AAAA(AlgorithmBase):
     def __init__(self, args, net_builder, tb_log=None, logger=None):
         super().__init__(args, net_builder, tb_log, logger)
         # fixmatch specificed arguments
-        self.init(args = args, T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio)
+        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio, lambda_perceptual = args.perceptual_loss_ratio)
     
-    def init(self, args, T, p_cutoff, hard_label=True, lambda_p=1.0):
+    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0, lambda_perceptual = 1.0):
         self.T = T
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
         self.lambda_p = lambda_p
 
         self.augmenter = self.set_augmenter()
-        self.policy, self.policy_optimizer = self.set_policy()
-        self.args = args
-        if self.args.Dnet != 'none':
-            self.discriminator, self.optimizer_D, self.criteria_D = self.set_discriminator()
-            self.lambda_d = self.args.discriminator_loss_ratio
+        self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
+        self.perceptual_loss = self.set_perceptual_loss()
+        self.lambda_perceptual = lambda_perceptual
 
     def set_hooks(self):
         super().set_hooks()
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
         self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
-        if self.args.Dnet != 'none':
-            self.register_hook(DiscriminatorUpdateHook(), "DiscriminatorUpdateHook")
 
     def set_dataset(self):
         if self.rank != 0 and self.distributed:
@@ -72,18 +69,18 @@ class AAAA(AlgorithmBase):
     def set_policy(self):
         policy = self.net_builder(num_classes=len(self.augmenter.operations))
         optimizer = get_optimizer(policy)
-        return policy, optimizer
+        scheduler = get_cosine_schedule_with_warmup(optimizer,
+                                                    self.num_train_iter // self.args.d_steps,
+                                                    self.args.num_warmup_iter)
+        return policy, optimizer, scheduler
 
     def set_augmenter(self):
         mean, std = self.dataset_dict['mean'], self.dataset_dict['std']
         augmenter = Augmenter(mean, std)
         return augmenter
 
-    def set_discriminator(self):
-        discriminator = nets.Discriminator(channels=3, num_classes=self.args.num_classes, img_size=self.args.img_size)
-        optimizer = torch.optim.Adam(discriminator.parameters(), lr=self.args.lr)
-        criteria = torch.nn.BCELoss()
-        return discriminator, optimizer, criteria
+    def set_perceptual_loss(self):
+        return VGGPerceptualLoss()
 
     def apply_augmentation(self, x, mag, requires_grad=False):
         if requires_grad:
@@ -106,8 +103,11 @@ class AAAA(AlgorithmBase):
         with self.amp_cm():
             with torch.no_grad():
                 mag = self.policy(x_ulb_s)['logits']
-            x_ulb_s_unaugmented = x_ulb_s
+            x_ulb_s_orig = x_ulb_s
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag, requires_grad=train_policy)
+
+            with torch.no_grad():
+                perceptual_loss = self.perceptual_loss(x_ulb_s, x_ulb_s_orig)
 
             if self.use_cat:
                 inputs = torch.cat((x_lb, x_ulb_w, x_ulb_s))
@@ -122,36 +122,6 @@ class AAAA(AlgorithmBase):
                 with torch.no_grad():
                     outs_x_ulb_w = self.model(x_ulb_w)
                     logits_x_ulb_w = outs_x_ulb_w['logits']
-
-            ##############################
-
-            ### Added discriminator
-
-            ##############################
-
-            if self.args.Dnet != 'none':
-
-                batch_size = x_ulb_w.size(0)
-
-                valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
-                fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
-
-                fake_pred, _ = self.discriminator(x_ulb_s)
-
-                discriminator_loss_for_model = self.criteria_D(fake_pred, valid)
-
-                self.optimizer_D.zero_grad()
-
-                fake_pred, _ = self.discriminator(x_ulb_s)
-                real_pred, _ = self.discriminator(x_ulb_s_unaugmented)
-
-                discriminator_loss = self.criteria_D(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)))
-
-            ##############################
-
-            ### Added discriminator
-
-            ##############################
 
             sup_loss = ce_loss(logits_x_lb, y_lb, reduction='mean')
 
@@ -176,10 +146,7 @@ class AAAA(AlgorithmBase):
                                           'ce',
                                           mask=mask)
 
-            if self.args.Dnet != 'none':
-                total_loss = sup_loss + self.lambda_u * unsup_loss + self.lambda_d * discriminator_loss_for_model    # add discriminator_loss_for_model
-            else:
-                total_loss = sup_loss + self.lambda_u * unsup_loss
+            total_loss = sup_loss + self.lambda_u * unsup_loss
 
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
 
@@ -193,7 +160,8 @@ class AAAA(AlgorithmBase):
             policy_loss = -self.lambda_p * consistency_loss(logits_x_ulb_s,
                                                             pseudo_label,
                                                             'ce',
-                                                            mask=mask)
+                                                            mask=mask) \
+                                                            - self.lambda_perceptual * perceptual_loss
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
             if self.args.Dnet != 'none':
                 self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
@@ -204,8 +172,12 @@ class AAAA(AlgorithmBase):
         tb_dict['train/unsup_loss'] = unsup_loss.item()
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
+<<<<<<< HEAD
         if self.args.Dnet != 'none':
             tb_dict['train/discriminator_loss'] = discriminator_loss.item()
+=======
+        tb_dict['train/perceptual_loss'] = perceptual_loss.item()
+>>>>>>> jack-perceptual-loss
         return tb_dict
     
     def get_save_dict(self):
