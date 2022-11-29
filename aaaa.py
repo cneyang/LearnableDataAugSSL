@@ -81,7 +81,7 @@ class AAAA(AlgorithmBase):
 
     def set_discriminator(self):
         discriminator = nets.Discriminator(channels=3, num_classes=self.args.num_classes, img_size=self.args.img_size)
-        optimizer = torch.optim.Adam(discriminator.parameters(), lr=self.args.lr)
+        optimizer = torch.optim.Adam(discriminator.parameters(), lr=self.args.lr/2)
         criteria = torch.nn.BCELoss()
         return discriminator, optimizer, criteria
 

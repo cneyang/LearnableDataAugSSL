@@ -55,8 +55,9 @@ def get_config():
                         help='batch size of evaluation data loader (it does not affect the accuracy)')
     parser.add_argument('--ema_m', type=float, default=0.999, help='ema momentum for eval_model')
     parser.add_argument('--ulb_loss_ratio', type=float, default=1.0)
-    parser.add_argument('--d_steps', type=int, default=5, help='number of discriminator(classifier) steps per generator(policy) step')
-    parser.add_argument('--policy_loss_ratio', type=float, default=1.0)
+    parser.add_argument('--p_steps', type=int, default=20, help='number of classifier steps per policy step')
+    parser.add_argument('--d_steps', type=int, default=20, help='number of classifier steps per discriminator step')
+    parser.add_argument('--policy_loss_ratio', type=float, default=0.01)
 
     '''
     Optimizer configurations
@@ -79,7 +80,7 @@ def get_config():
     Backbone Net Configurations
     '''
     parser.add_argument('--Dnet', type=str, default='none')
-    parser.add_argument('--discriminator_loss_ratio', type=float, default=1.0)
+    parser.add_argument('--discriminator_loss_ratio', type=float, default=0.01)
 
     '''
     Algorithms Configurations

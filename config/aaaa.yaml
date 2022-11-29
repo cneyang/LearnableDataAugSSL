@@ -1,6 +1,6 @@
 algorithm: aaaa
 save_dir: ./saved_models
-# save_name: aaaa_cifar10_250_0
+save_name: aaaa_slow_disc
 resume: False
 load_path: ./saved_models/aaaa_cifar10_250_0/latest_model.pth
 overwrite: True
@@ -38,7 +38,7 @@ num_workers: 1
 seed: 0
 world_size: 1
 rank: 0
-multiprocessing_distributed: False
+multiprocessing_distributed: True
 dist_url: tcp://127.0.0.1:10008
 dist_backend: nccl
-gpu: None
+gpu: 1
