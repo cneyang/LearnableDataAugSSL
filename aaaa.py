@@ -80,6 +80,16 @@ class AAAA(AlgorithmBase):
             with torch.no_grad():
                 return self.augmenter(x, mag)
 
+    def label_preserving_loss(x_ulb_w, x_ulb_s, targets, mask=None, sigma=0.02):
+        probs_w = F.softmax(x_ulb_w, dim=-1)
+        probs_s = F.softmax(x_ulb_s, dim=-1)
+        log_probs_w = torch.log(torch.gather(probs_w, 1, targets.unsqueeze(1)))
+        log_probs_s = torch.log(torch.gather(probs_s, 1, targets.unsqueeze(1)))
+        loss = F.relu(log_probs_w - log_probs_s - sigma)
+        if mask is not None:
+            loss = loss * mask
+        return loss.mean()
+
     def train_step(self, x_lb, y_lb, x_ulb_w, x_ulb_s):
         num_lb = y_lb.shape[0]
 
@@ -147,7 +157,11 @@ class AAAA(AlgorithmBase):
             policy_loss = -self.lambda_p * consistency_loss(logits_x_ulb_s,
                                                             pseudo_label,
                                                             'ce',
-                                                            mask=mask)
+                                                            mask=mask) \
+                          + label_preserving_loss(logits_x_ulb_w,
+                                                  logits_x_ulb_s,
+                                                  pseudo_label,
+                                                  mask=mask)
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
 
         
