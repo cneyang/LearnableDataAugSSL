@@ -266,6 +266,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.resume and os.path.exists(args.load_path):
         try:
             model.load_model(args.load_path)
+            logger.info("Resume load path {}".format(args.load_path))
         except:
             logger.info("Fail to resume load path {}".format(args.load_path))    
             args.resume = False
