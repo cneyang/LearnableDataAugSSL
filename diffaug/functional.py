@@ -134,25 +134,25 @@ def _blur(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
 @tensor_function
 def shear_x(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([mag, torch.zeros_like(mag)], dim=1)
-    return kornia.geometry.shear(img, mag)
+    return kornia.shear(img, mag)
 
 
 @tensor_function
 def shear_y(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([torch.zeros_like(mag), mag], dim=1)
-    return kornia.geometry.shear(img, mag)
+    return kornia.shear(img, mag)
 
 
 @tensor_function
 def translate_x(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([mag * img.size(-1), torch.zeros_like(mag)], dim=1)
-    return kornia.geometry.translate(img, mag)
+    return kornia.translate(img, mag)
 
 
 @tensor_function
 def translate_y(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([torch.zeros_like(mag), mag * img.size(-2)], dim=1)
-    return kornia.geometry.translate(img, mag)
+    return kornia.translate(img, mag)
 
 
 @tensor_function
@@ -167,7 +167,7 @@ def vflip(img: torch.Tensor, _=None) -> torch.Tensor:
 
 @tensor_function
 def rotate(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
-    return kornia.geometry.rotate(img, mag)
+    return kornia.rotate(img, mag)
 
 
 # Color transformation functions
