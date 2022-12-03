@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn.functional as F
 from semilearn.core.algorithmbase import AlgorithmBase
 from semilearn.algorithms.hooks import PseudoLabelingHook, FixedThresholdingHook
 from semilearn.algorithms.utils import ce_loss, consistency_loss, SSL_Argument, str2bool
@@ -80,7 +81,7 @@ class AAAA(AlgorithmBase):
             with torch.no_grad():
                 return self.augmenter(x, mag)
 
-    def label_preserving_loss(x_ulb_w, x_ulb_s, targets, mask=None, sigma=0.02):
+    def label_preserving_loss(self, x_ulb_w, x_ulb_s, targets, mask=None, sigma=0.002):
         probs_w = F.softmax(x_ulb_w, dim=-1)
         probs_s = F.softmax(x_ulb_s, dim=-1)
         log_probs_w = torch.log(torch.gather(probs_w, 1, targets.unsqueeze(1)))
@@ -153,15 +154,16 @@ class AAAA(AlgorithmBase):
             
             outs_x_ulb_s = self.model(x_ulb_s)
             logits_x_ulb_s = outs_x_ulb_s['logits']
+            logits_x_ulb_w = self.model(x_ulb_w)['logits'].detach()
 
             policy_loss = -self.lambda_p * consistency_loss(logits_x_ulb_s,
                                                             pseudo_label,
                                                             'ce',
                                                             mask=mask) \
-                          + label_preserving_loss(logits_x_ulb_w,
-                                                  logits_x_ulb_s,
-                                                  pseudo_label,
-                                                  mask=mask)
+                          + self.label_preserving_loss(logits_x_ulb_w,
+                                                       logits_x_ulb_s,
+                                                       pseudo_label,
+                                                       mask=mask)
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
 
         

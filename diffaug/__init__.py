@@ -38,7 +38,8 @@ class Augmenter(nn.Module):
 
     def apply_operation(self, input: Tensor, mag: Tensor) -> Tensor:
         for i, op in enumerate(self.operations):
-            input = op(input, mag[:, i])
+            if torch.rand(1) < 0.5:
+                input = op(input, mag[:, i])
         return input
 
     def forward(self, input: Tensor, mag: Tensor) -> Tensor:
