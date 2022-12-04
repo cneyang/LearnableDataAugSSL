@@ -5,10 +5,10 @@ img image tensor `img` is expected to be CxHxW or BxCxHxW and its range should b
 
 import functools
 from typing import Optional
-
+import numpy as np
 import kornia
 from torch.nn import functional as F
-
+import random
 from .kernels import get_sharpness_kernel, get_gaussian_3x3kernel
 
 __all__ = [
@@ -31,6 +31,7 @@ __all__ = [
     "sample_pairing",
     "equalize",
     "sharpness",
+    "cutout",
 ]
 
 # helper functions
@@ -296,7 +297,20 @@ def gaussian_blur3x3(
         kernel = get_gaussian_3x3kernel(mag, img.device)
     return _blur(img, kernel)
 
-
 @tensor_function
 def cutout(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
-    raise NotImplementedError
+    # print(img.shape)
+    num, channels, h, w = img.shape
+    new_image = img
+    # The size of mask to apply
+    size = np.random.randint(h//2)
+    # np.random.randint(h)
+    y = np.random.randint(h)
+    x = np.random.randint(w)
+    # print("y-size/2 ",y + size // 2)
+    y1 = max(0, y - size // 2)
+    y2 = min(h, y + size // 2)
+    x1 = max(0, x - size // 2)
+    x2 = min(w, x + size // 2)
+    new_image[:,:,y1:y2,x1:x2] = 0
+    return new_image

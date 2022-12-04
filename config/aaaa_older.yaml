@@ -7,7 +7,7 @@ overwrite: True
 use_tensorboard: True
 epoch: 1024
 num_train_iter: 1048576
-num_eval_iter: 600
+num_eval_iter: 100
 # num_eval_iter: 5120
 num_labels: 250
 batch_size: 64
