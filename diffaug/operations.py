@@ -140,7 +140,11 @@ class _Operation(nn.Module):
 
                 if self.flip_magnitude:
                     # (0 or 1) -> (0 or 2) -> (-1 or 1)
-                    mag = Uniform(-mag, mag + 1e-8).rsample()
+                    try:
+                        mag = Uniform(-mag, mag + 1e-8).rsample()
+                    except:
+                        print(mag)
+                        raise ValueError
                 else:
                     mag = Uniform(0, mag + 1e-8).rsample()
 

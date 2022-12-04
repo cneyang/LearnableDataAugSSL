@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import torch
 import torch.nn.functional as F
 from semilearn.core.algorithmbase import AlgorithmBase
@@ -40,6 +41,7 @@ class AAAA(AlgorithmBase):
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
         self.lambda_p = lambda_p
+        self.sigma = 0.002
 
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
@@ -76,17 +78,19 @@ class AAAA(AlgorithmBase):
 
     def apply_augmentation(self, x, mag, requires_grad=False):
         if requires_grad:
-            return self.augmenter(x, mag)
+            return self.augmenter(x, mag, sample=False)
         else:
             with torch.no_grad():
-                return self.augmenter(x, mag)
+                return self.augmenter(x, mag, sample=True)
 
-    def label_preserving_loss(self, x_ulb_w, x_ulb_s, targets, mask=None, sigma=0.002):
+    def label_preserving_loss(self, x_ulb_w, x_ulb_s, targets, mask=None):
         probs_w = F.softmax(x_ulb_w, dim=-1)
         probs_s = F.softmax(x_ulb_s, dim=-1)
         log_probs_w = torch.log(torch.gather(probs_w, 1, targets.unsqueeze(1)))
         log_probs_s = torch.log(torch.gather(probs_s, 1, targets.unsqueeze(1)))
-        loss = F.relu(log_probs_w - log_probs_s - sigma)
+        loss = F.relu(log_probs_w - log_probs_s - self.sigma)
+        self.sigma = np.clip(self.sigma * 1.01, 0, 0.02)
+
         if mask is not None:
             loss = loss * mask
         return loss.mean()
@@ -160,10 +164,10 @@ class AAAA(AlgorithmBase):
                                                             pseudo_label,
                                                             'ce',
                                                             mask=mask) \
-                          + self.label_preserving_loss(logits_x_ulb_w,
-                                                       logits_x_ulb_s,
-                                                       pseudo_label,
-                                                       mask=mask)
+                        #   + self.label_preserving_loss(logits_x_ulb_w,
+                        #                                logits_x_ulb_s,
+                        #                                pseudo_label,
+                        #                                mask=mask)
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
 
         
