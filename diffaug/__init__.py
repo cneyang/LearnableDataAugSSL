@@ -2,7 +2,7 @@ import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.distributions import Categorical
-
+from .operations import Cutout
 from .operations import *
 
 
@@ -27,6 +27,7 @@ class Augmenter(nn.Module):
                 Sharpness(magnitude_range=(0.05, 0.95)),
                 AutoContrast(),
                 Equalize(),
+                Cutout(),
             ]
         )
         mean = torch.Tensor(mean).view(1, 3, 1, 1)
