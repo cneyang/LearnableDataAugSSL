@@ -125,8 +125,9 @@ class AAAA(AlgorithmBase):
             x_ulb_s_unaugmented = x_ulb_s
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag, requires_grad=train_policy)
 
-            with torch.no_grad():
-                perceptual_loss = self.perceptual_loss(x_ulb_s, x_ulb_s_unaugmented)
+            if self.suppression_loss == 'perceptual':
+                with torch.no_grad():
+                    perceptual_loss = self.perceptual_loss(x_ulb_s, x_ulb_s_unaugmented)
 
             if self.use_cat:
                 inputs = torch.cat((x_lb, x_ulb_w, x_ulb_s))
@@ -204,10 +205,11 @@ class AAAA(AlgorithmBase):
             elif self.suppression_loss == 'perceptual':
                 policy_loss += -self.lambda_sup * perceptual_loss
             elif self.suppression_loss == 'label_preserving':
-                policy_loss += -self.lambda_sup * self.label_preserving_loss(logits_x_ulb_w,
+                label_preserving_loss = self.label_preserving_loss(logits_x_ulb_w,
                                                        logits_x_ulb_s,
                                                        pseudo_label,
                                                        mask=mask)
+                policy_loss += self.lambda_sup * label_preserving_loss
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
 
             if self.suppression_loss == 'discriminator':
@@ -222,6 +224,11 @@ class AAAA(AlgorithmBase):
         if self.suppression_loss == 'discriminator':
             tb_dict['train/discriminator_loss'] = discriminator_loss.item()
             tb_dict['train/suppression_loss'] = suppression_loss.item()
+        elif self.suppression_loss == 'perceptual':
+            tb_dict['train/suppression_loss'] = perceptual_loss.item()
+        elif self.suppression_loss == 'label_preeserving':
+            tb_dict['train/suppression_loss'] = label_preserving_loss.item()
+
         return tb_dict
     
     def get_save_dict(self):
