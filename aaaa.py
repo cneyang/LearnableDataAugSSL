@@ -7,8 +7,9 @@ from semilearn.algorithms.utils import ce_loss, consistency_loss, SSL_Argument, 
 from semilearn.core.utils import get_optimizer, get_cosine_schedule_with_warmup
 
 from utils import get_dataset
-from hook import PolicyUpdateHook
+from hook import PolicyUpdateHook, DiscriminatorUpdateHook
 from diffaug import Augmenter
+import nets
 
 class AAAA(AlgorithmBase):
     """
@@ -33,17 +34,26 @@ class AAAA(AlgorithmBase):
     def __init__(self, args, net_builder, tb_log=None, logger=None):
         super().__init__(args, net_builder, tb_log, logger)
         # fixmatch specificed arguments
-        self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio)
+        self.init(args = args, T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label, lambda_p=args.policy_loss_ratio)
     
-    def init(self, T, p_cutoff, hard_label=True, lambda_p=1.0):
+    def init(self, args, T, p_cutoff, hard_label=True, lambda_p=1.0):
         self.T = T
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
         self.lambda_p = lambda_p
+        self.suppression_loss = args.suppression_loss
 
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
-    
+
+        if self.suppression_loss != 'none':
+            self.lambda_sup = args.suppression_loss_ratio
+
+        if self.suppression_loss == 'discriminator':
+            self.discriminator, self.optimizer_D, self.criteria_D = self.set_discriminator()
+        elif self.suppression_loss == 'perceptual':
+            self.perceptual_loss = nets.WRNPerceptualLoss()
+        
     def set_hooks(self):
         super().set_hooks()
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
@@ -81,6 +91,13 @@ class AAAA(AlgorithmBase):
             with torch.no_grad():
                 return self.augmenter(x, mag)
 
+    def set_discriminator(self):
+        self.register_hook(DiscriminatorUpdateHook(), "DiscriminatorUpdateHook")
+        discriminator = nets.Discriminator(channels=3, num_classes=self.args.num_classes, img_size=self.args.img_size)
+        optimizer = torch.optim.Adam(discriminator.parameters(), lr=self.args.lr)
+        criteria = torch.nn.BCELoss()
+        return discriminator, optimizer, criteria
+
     def label_preserving_loss(self, x_ulb_w, x_ulb_s, targets, mask=None, sigma=0.002):
         probs_w = F.softmax(x_ulb_w, dim=-1)
         probs_s = F.softmax(x_ulb_s, dim=-1)
@@ -105,7 +122,11 @@ class AAAA(AlgorithmBase):
         with self.amp_cm():
             with torch.no_grad():
                 mag = self.policy(x_ulb_s)['logits']
+            x_ulb_s_unaugmented = x_ulb_s
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag, requires_grad=train_policy)
+
+            with torch.no_grad():
+                perceptual_loss = self.perceptual_loss(x_ulb_s, x_ulb_s_unaugmented)
 
             if self.use_cat:
                 inputs = torch.cat((x_lb, x_ulb_w, x_ulb_s))
@@ -120,6 +141,23 @@ class AAAA(AlgorithmBase):
                 with torch.no_grad():
                     outs_x_ulb_w = self.model(x_ulb_w)
                     logits_x_ulb_w = outs_x_ulb_w['logits']
+
+            if self.suppression_loss == 'discriminator':
+                batch_size = x_ulb_w.size(0)
+
+                valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
+                fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
+
+                fake_pred, _ = self.discriminator(x_ulb_s)
+
+                suppression_loss = self.criteria_D(fake_pred, valid)
+
+                self.optimizer_D.zero_grad()
+
+                fake_pred, _ = self.discriminator(x_ulb_s)
+                real_pred, _ = self.discriminator(x_ulb_s_unaugmented)
+
+                discriminator_loss = self.criteria_D(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)))
 
             sup_loss = ce_loss(logits_x_lb, y_lb, reduction='mean')
             
@@ -159,12 +197,21 @@ class AAAA(AlgorithmBase):
             policy_loss = -self.lambda_p * consistency_loss(logits_x_ulb_s,
                                                             pseudo_label,
                                                             'ce',
-                                                            mask=mask) \
-                          + self.label_preserving_loss(logits_x_ulb_w,
+                                                            mask=mask)
+    
+            if self.suppression_loss == 'discriminator':
+                policy_loss += -self.lambda_sup * suppression_loss
+            elif self.suppression_loss == 'perceptual':
+                policy_loss += -self.lambda_sup * perceptual_loss
+            elif self.suppression_loss == 'label_preserving':
+                policy_loss += -self.lambda_sup * self.label_preserving_loss(logits_x_ulb_w,
                                                        logits_x_ulb_s,
                                                        pseudo_label,
                                                        mask=mask)
             self.call_hook("policy_update", "PolicyUpdateHook", loss=policy_loss)
+
+            if self.suppression_loss == 'discriminator':
+                self.call_hook("discriminator_update", "DiscriminatorUpdateHook", loss=discriminator_loss)
 
         
         tb_dict = {}
@@ -172,6 +219,9 @@ class AAAA(AlgorithmBase):
         tb_dict['train/unsup_loss'] = unsup_loss.item()
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
+        if self.suppression_loss == 'discriminator':
+            tb_dict['train/discriminator_loss'] = discriminator_loss.item()
+            tb_dict['train/suppression_loss'] = suppression_loss.item()
         return tb_dict
     
     def get_save_dict(self):

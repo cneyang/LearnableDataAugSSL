@@ -1,8 +1,10 @@
 algorithm: aaaa
+suppression_loss: perceptual
+suppression_loss_ratio: 0.1
 policy_loss_ratio: 0.1
 d_steps: 20
 save_dir: ./saved_models
-save_name: aaaa_cifar10_250_20_01
+save_name: aaaa_P_cifar10_250_20_01_01
 resume: False
 overwrite: True
 use_tensorboard: True

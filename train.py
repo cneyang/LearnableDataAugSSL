@@ -89,6 +89,12 @@ def get_config():
     parser.add_argument('-imb_alg', '--imb_algorithm', type=str, default=None, help='imbalance ssl algorithm')
 
     '''
+    Suppression Loss Configurations
+    '''  
+    parser.add_argument('--suppression_loss', type=str, default='none')
+    parser.add_argument('--suppression_loss_ratio', type=float, default=1.0)
+
+    '''
     Data Configurations
     '''
 
@@ -252,6 +258,10 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.algorithm == 'aaaa':
         model.policy = send_model_cuda(args, model.policy)
         model.augmenter = send_model_cuda(args, model.augmenter)
+        if args.suppression_loss == 'discriminator':
+            model.discriminator = send_model_cuda(args, model.discriminator)
+        elif args.suppression_loss == 'perceptual':
+            model.perceptual_loss = send_model_cuda(args, model.perceptual_loss)
 
     # If args.resume, load checkpoints from args.load_path
     if args.resume and os.path.exists(args.load_path):

@@ -1,0 +1,9 @@
+torch==1.13.0
+torchaudio==0.13.0
+torchvision==0.14.0
+kornia==0.5.8
+opencv-python==4.6.0.66
+scikit-image==0.19.3
+scikit-learn==1.0.2
+semilearn==0.2.4a0
+tensorboard==2.11.0
