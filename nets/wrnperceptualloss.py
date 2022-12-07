@@ -38,7 +38,8 @@ class WRNPerceptualLoss(torch.nn.Module):
             x = block(x)
             y = block(y)
             if i in feature_layers:
-                loss += torch.nn.functional.l1_loss(x, y)
+                b,c,h,w = x.shape
+                loss += torch.nn.functional.l2_loss(x, y) / (c*h*w)
             if i in style_layers:
                 act_x = x.reshape(x.shape[0], x.shape[1], -1)
                 act_y = y.reshape(y.shape[0], y.shape[1], -1)
