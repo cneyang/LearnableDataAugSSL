@@ -22,7 +22,7 @@ class WRNPerceptualLoss(torch.nn.Module):
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
         self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
-    def forward(self, input, target, feature_layers=[4, 5, 6, 7], style_layers=[]):
+    def forward(self, input, target, feature_layers=[4, 5, 6, 7]):
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
@@ -39,11 +39,5 @@ class WRNPerceptualLoss(torch.nn.Module):
             y = block(y)
             if i in feature_layers:
                 b,c,h,w = x.shape
-                loss += torch.nn.functional.l2_loss(x, y) / (c*h*w)
-            if i in style_layers:
-                act_x = x.reshape(x.shape[0], x.shape[1], -1)
-                act_y = y.reshape(y.shape[0], y.shape[1], -1)
-                gram_x = act_x @ act_x.permute(0, 2, 1)
-                gram_y = act_y @ act_y.permute(0, 2, 1)
-                loss += torch.nn.functional.l1_loss(gram_x, gram_y)
+                loss += torch.nn.functional.MSELoss(x, y) / (c*h*w)
         return loss
