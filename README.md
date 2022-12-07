@@ -18,4 +18,19 @@ Mentor: Hao Chen, Samruddhi Pai
 ## Run AAAA
 ```bash
 python train.py --c configs/aaaa.yaml
-````
+```
+
+### Run AAAA with Discriminator loss
+```bash
+python train.py --c configs/aaaa_discriminator.yaml
+```
+
+### Run AAAA with Perceptual loss
+```bash
+python train.py --c configs/aaaa_perceptual.yaml
+```
+
+### Run AAAA with Label Preserving loss
+```bash
+python train.py --c configs/aaaa_label_preserving.yaml
+```
