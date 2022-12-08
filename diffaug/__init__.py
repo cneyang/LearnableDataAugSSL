@@ -7,10 +7,9 @@ from .operations import *
 
 
 class Augmenter(nn.Module):
-    def __init__(self, mean, std, before_ops=None, after_ops=None):
+    def __init__(self, mean, std, before_ops=None, after_ops=None, cutout = False):
         super(Augmenter, self).__init__()
-        self.operations = nn.ModuleList(
-            [
+        self.operations = [
                 # what more...?
                 ShearX(),
                 ShearY(),
@@ -27,9 +26,14 @@ class Augmenter(nn.Module):
                 Sharpness(magnitude_range=(0.05, 0.95)),
                 AutoContrast(),
                 Equalize(),
-                Cutout(),
+                # Cutout(),
             ]
-        )
+
+        if cutout:
+            self.operations.append(Cutout())
+        
+        self.operations = nn.ModuleList(self.operations)
+
         mean = torch.Tensor(mean).view(1, 3, 1, 1)
         std = torch.Tensor(std).view(1, 3, 1, 1)
         self.mean = nn.parameter.Parameter(mean, requires_grad=False)

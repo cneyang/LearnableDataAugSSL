@@ -42,6 +42,7 @@ class AAAA(AlgorithmBase):
         self.use_hard_label = hard_label
         self.lambda_p = lambda_p
         self.suppression_loss = args.suppression_loss
+        self.cutout = args.cutout
 
         self.augmenter = self.set_augmenter()
         self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
@@ -81,7 +82,7 @@ class AAAA(AlgorithmBase):
 
     def set_augmenter(self):
         mean, std = self.dataset_dict['mean'], self.dataset_dict['std']
-        augmenter = Augmenter(mean, std)
+        augmenter = Augmenter(mean, std, cutout=self.cutout)
         return augmenter
 
     def apply_augmentation(self, x, mag, requires_grad=False):

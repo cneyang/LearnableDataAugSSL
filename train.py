@@ -91,13 +91,17 @@ def get_config():
     '''
     Suppression Loss Configurations
     '''  
-    parser.add_argument('--suppression_loss', type=str, default='none')
-    parser.add_argument('--suppression_loss_ratio', type=float, default=1.0)
+    parser.add_argument('--suppression_loss', type=str, help='type of suppression loss for AAAA. [none|discriminator|perceptual|label_preserving]', default='none')
+    parser.add_argument('--suppression_loss_ratio', type=float, help='ratio of suppression loss to be added to policy network', default=1.0)
+
+    '''
+    cutout Configurations
+    '''
+    parser.add_argument('--cutout', type=str2bool, help='add cutout as an augmentation. [True|False]', default=False)
 
     '''
     Data Configurations
     '''
-
     ## standard setting configurations
     parser.add_argument('--data_dir', type=str, default='./data')
     parser.add_argument('-ds', '--dataset', type=str, default='cifar10')
