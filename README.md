@@ -1,7 +1,9 @@
 # Adaptive Adversarial AutoAugment (AAAA)
 ### CMU 11-785 Final Project
 Eugene Yang, Jhao-Ting Chen, Pratik Mandlecha, Fangcheng Zou  
-Mentor: Hao Chen, Samruddhi Pai  
+Mentor: Hao Chen, Samruddhi Pai
+
+<sub> **To 11-785 TAs: We worked in different separate branches, and manually merged them into this final branch, please also check other branches when considering contributions.**</sub>
 
 
 ## Installation
