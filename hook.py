@@ -1,3 +1,6 @@
+import copy
+import torch
+
 from semilearn.core.hooks import Hook
 
 class PolicyUpdateHook(Hook):
@@ -15,3 +18,65 @@ class PolicyUpdateHook(Hook):
 
         algorithm.policy_scheduler.step()
         algorithm.policy_optimizer.zero_grad()
+
+class AdversarialAttackHook(Hook):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def attack(self, algorithm, x_ulb_w, targets_ulb_w, y_ulb_w, feats):
+        mu, std = algorithm.dataset_dict['mean'], algorithm.dataset_dict['std']
+        mu = torch.tensor(mu).view(3,1,1)
+        std = torch.tensor(std).view(3,1,1)
+        upper_limit = ((1 - mu) / std).cuda(algorithm.gpu)
+        lower_limit = ((0 - mu) / std).cuda(algorithm.gpu)
+
+        perturbations = torch.zeros_like(x_ulb_w)
+        perturbations.uniform_(-0.01, 0.01)
+        perturbations.data = self.clamp(perturbations, lower_limit - x_ulb_w, upper_limit - x_ulb_w)
+        perturbations.requires_grad = True
+
+        for it in range(algorithm.attack_iters):
+            step_size = algorithm.bound * 0.1 ** (it / algorithm.attack_iters)
+            lam = algorithm.attack_lam * 0.1 ** (1 - it / algorithm.attack_iters)
+
+            if perturbations.grad is not None:
+                perturbations.grad.data.zero_()
+
+            x_adv = x_ulb_w + perturbations
+
+            outs_adv = algorithm.model(x_adv, adv=True)
+            logits_adv, feats_adv = outs_adv['logits'], outs_adv['feats']
+            prob_adv = torch.softmax(logits_adv / algorithm.T, dim=-1)
+            y_adv = torch.log(torch.gather(prob_adv, 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
+
+            pip = (algorithm.normalize_flatten_features(feats_adv) - feats).norm(dim=1).mean()
+            constraint = y_ulb_w - y_adv
+            loss = -pip + lam * torch.relu(constraint - algorithm.bound).mean()
+            loss.backward()
+
+            grad = perturbations.grad.data
+            grad_normed = grad / (grad.reshape(grad.size()[0], -1).norm(dim=1)[:, None, None, None] + 1e-8)
+
+            with torch.no_grad():
+                y_after = torch.log(torch.gather(torch.softmax(algorithm.model(x_ulb_w + perturbations - grad_normed * 0.1, adv=True)['logits'] / algorithm.T, dim=1), 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
+                dist_grads = torch.abs(y_adv - y_after) / 0.1
+                norm = step_size / (dist_grads + 1e-4)
+                perturbations = perturbations - grad_normed * norm[:, None, None, None]
+            perturbations = self.clamp(perturbations, lower_limit - x_ulb_w, upper_limit - x_ulb_w).detach()
+
+        return (x_ulb_w + perturbations).detach()
+
+    def clamp(self, X, lower_limit, upper_limit):
+        return torch.max(torch.min(X, upper_limit), lower_limit)
+
+class TimeConsistencyHook(Hook):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def memory_update(self, algorithm):
+        if algorithm.mem_update.all():
+            _, indices = torch.sort(algorithm.mem_tc, descending=True)
+            kt = (1 - algorithm.tau) * algorithm.args.ulb_dest_len
+            mem_tc_copy = copy.deepcopy(algorithm.mem_tc)
+            algorithm.threshold = mem_tc_copy[indices[int(kt)]]
+            algorithm.mem_update = torch.zeros_like(algorithm.mem_update, dtype=torch.bool)
