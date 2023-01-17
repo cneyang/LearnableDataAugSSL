@@ -1,14 +1,13 @@
-algorithm: aaaa
-save_dir: ./saved_models
-save_name: aaaa_cifar10_250_0_mseadv
+algorithm: lpa3
+save_dir: ./saved_models/baseline
+save_name: lpa3_cifar10_250_0
 resume: False
-load_path: ./saved_models/aaaa_cifar10_250_0/latest_model.pth
+load_path: ./saved_models/baseline/lpa3_cifar10_250_0/latest_model.pth
 overwrite: True
 use_tensorboard: True
-epoch: 1024
-num_train_iter: 1048576
-num_eval_iter: 100
-# num_eval_iter: 5120
+epoch: 500
+num_train_iter: 512000
+num_eval_iter: 5120
 num_labels: 250
 batch_size: 64
 eval_batch_size: 256
@@ -28,7 +27,7 @@ layer_decay: 1.0
 amp: False
 clip: 0.0
 use_cat: True
-net: wrn_28_2
+net: wrn_28_2_adv
 net_from_name: False
 data_dir: ./data
 dataset: cifar10
