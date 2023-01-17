@@ -32,6 +32,8 @@ def get_dataset(args, algorithm, dataset, num_labels, num_classes, data_dir='./d
 
 from semilearn.algorithms import *
 from aaaa import AAAA
+from modernvat import ModernVAT
+from lpa3 import LPA3
 
 name2alg = {
     'fullysupervised': FullySupervised,
@@ -50,7 +52,9 @@ name2alg = {
     'comatch': CoMatch,
     'simmatch': SimMatch,
     'dash': Dash,
-    'aaaa': AAAA
+    'aaaa': AAAA,
+    'modernvat': ModernVAT,
+    'lpa3': LPA3
 }
 
 def get_algorithm(args, net_builder, tb_log, logger):

@@ -1,5 +1,6 @@
 import copy
 import torch
+import torch.nn.functional as F
 
 from semilearn.core.hooks import Hook
 
@@ -24,7 +25,8 @@ class AdversarialAttackHook(Hook):
         super().__init__()
 
     def attack(self, algorithm, x_ulb_w, targets_ulb_w, y_ulb_w, feats):
-        mu, std = algorithm.dataset_dict['mean'], algorithm.dataset_dict['std']
+        mu = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
         mu = torch.tensor(mu).view(3,1,1)
         std = torch.tensor(std).view(3,1,1)
         upper_limit = ((1 - mu) / std).cuda(algorithm.gpu)
@@ -51,7 +53,7 @@ class AdversarialAttackHook(Hook):
 
             pip = (algorithm.normalize_flatten_features(feats_adv) - feats).norm(dim=1).mean()
             constraint = y_ulb_w - y_adv
-            loss = -pip + lam * torch.relu(constraint - algorithm.bound).mean()
+            loss = -pip + lam * F.relu(constraint - algorithm.bound).mean()
             loss.backward()
 
             grad = perturbations.grad.data
@@ -61,8 +63,8 @@ class AdversarialAttackHook(Hook):
                 y_after = torch.log(torch.gather(torch.softmax(algorithm.model(x_ulb_w + perturbations - grad_normed * 0.1, adv=True)['logits'] / algorithm.T, dim=1), 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
                 dist_grads = torch.abs(y_adv - y_after) / 0.1
                 norm = step_size / (dist_grads + 1e-4)
-                perturbations = perturbations - grad_normed * norm[:, None, None, None]
-            perturbations = self.clamp(perturbations, lower_limit - x_ulb_w, upper_limit - x_ulb_w).detach()
+            perturbation_updates = - grad_normed * norm[:, None, None, None]
+            perturbations.data = self.clamp(perturbations + perturbation_updates, lower_limit - x_ulb_w, upper_limit - x_ulb_w).detach()
 
         return (x_ulb_w + perturbations).detach()
 
