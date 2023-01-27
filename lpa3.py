@@ -40,11 +40,11 @@ class LPA3(AlgorithmBase):
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
 
-        self.warm_up_adv = 5
-        self.bound = 0.1
+        self.warm_up_adv = 512
+        self.bound = 0.002
         self.tau = 0.1
         self.attack_iters = 5
-        self.attack_lam = 0.1
+        self.attack_lam = 1.0
         self.lpa3_threshold = 0.9
         self.mem_update = Variable(torch.zeros(self.args.ulb_dest_len, dtype=torch.bool, requires_grad=False).cuda(self.gpu))
         self.mem_logits = Variable(torch.ones([self.args.ulb_dest_len, self.num_classes], dtype=torch.int64, requires_grad=False).cuda(self.gpu) + 0.01)
@@ -67,19 +67,19 @@ class LPA3(AlgorithmBase):
             
             # adversarial training
             with torch.no_grad():
-                outs_x_ulb_w = self.model(x_ulb_w, adv=True)
+                outs_x_ulb_w = self.model(x=x_ulb_w, adv=True)
                 _, targets_ulb_w  = torch.max(outs_x_ulb_w['logits'], dim=1)
                 feats = self.normalize_flatten_features(outs_x_ulb_w['feats'])
                 probs_x_ulb_w = F.softmax(outs_x_ulb_w['logits'] / self.T, dim=-1)
                 y_ulb_w = torch.log(torch.gather(probs_x_ulb_w, 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
-                # adversarial training
+
                 a_t = F.kl_div(self.mem_logits[idx_ulb].log(), probs_x_ulb_w, reduction='none').sum(dim=1)
                 mask_smooth = (self.mem_tc[idx_ulb]).lt(self.threshold)
 
             run_adv = mask_smooth.sum() > 0
-            train_adv = run_adv and self.epoch >= self.warm_up_adv
+            train_adv = run_adv and self.it >= self.warm_up_adv
 
-            if run_adv:
+            if run_adv and train_adv:
                 adv_inputs = self.call_hook("attack", "AdversarialAttackHook", x_ulb_w[mask_smooth], targets_ulb_w[mask_smooth], y_ulb_w[mask_smooth], feats[mask_smooth])
 
             # fixmatch
@@ -123,19 +123,19 @@ class LPA3(AlgorithmBase):
             total_loss = sup_loss + self.lambda_u * unsup_loss
 
             pseudo_label = self.call_hook("gen_ulb_targets", "PseudoLabelingHook",
-                                          logits=probs_x_ulb_w,
+                                          logits=logits_x_ulb_w,
                                           use_hard_label=False,
                                           T=self.T,
                                           softmax=True)
-            max_probs, targets_x_ulb_w = torch.max(pseudo_label, dim=1)
+            max_probs, targets_x_ulb_w = torch.max(pseudo_label, dim=-1)
             mask_lpa3 = (max_probs[mask_smooth].ge(self.lpa3_threshold)).float()
 
-            if run_adv:
-                outs_x_adv = self.model(adv_inputs, adv=True)
+            if run_adv and train_adv and mask_lpa3.sum() > 0:
+                outs_x_adv = self.model(x=adv_inputs, adv=True)
                 l_adv = (F.cross_entropy(outs_x_adv['logits'], targets_x_ulb_w[mask_smooth], reduction='none') * mask_lpa3).mean()
-
-            if train_adv:
                 total_loss += l_adv
+            else:
+                train_adv = False
 
         # parameter updates
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
@@ -148,9 +148,12 @@ class LPA3(AlgorithmBase):
         tb_dict = {}
         tb_dict['train/sup_loss'] = sup_loss.item()
         tb_dict['train/unsup_loss'] = unsup_loss.item()
-        tb_dict['train/adv_loss'] = l_adv.item() if run_adv else 0
+        tb_dict['train/adv_loss'] = l_adv.item() if train_adv else 0
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
+        tb_dict['train/mask_smooth_ratio'] = mask_smooth.float().mean().item()
+        tb_dict['train/mask_lpa3_ratio'] = mask_lpa3.float().mean().item()
+        tb_dict['train/max_prob'] = max_probs[mask_smooth].mean().item()
         return tb_dict
     
     def normalize_flatten_features(self, features, eps=1e-10):

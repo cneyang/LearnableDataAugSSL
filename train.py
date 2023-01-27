@@ -28,7 +28,7 @@ def get_config():
     Saving & loading of the model.
     '''
     parser.add_argument('--save_dir', type=str, default='./saved_models')
-    parser.add_argument('-sn', '--save_name', type=str, default='LearnableAugSSL')
+    parser.add_argument('-sn', '--save_name', type=str, default='aaaa')
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--load_path', type=str)
     parser.add_argument('-o', '--overwrite', action='store_true', default=True)
@@ -251,7 +251,8 @@ def main_worker(gpu, ngpus_per_node, args):
     
     if args.algorithm == 'aaaa':
         model.policy = send_model_cuda(args, model.policy)
-        model.augmenter = send_model_cuda(args, model.augmenter)
+        # model.augmenter = send_model_cuda(args, model.augmenter)
+        model.augmenter = model.augmenter.cuda()
 
     # If args.resume, load checkpoints from args.load_path
     if args.resume and os.path.exists(args.load_path):
