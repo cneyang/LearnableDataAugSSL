@@ -38,6 +38,8 @@ class AAAA(AlgorithmBase):
         self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label)
     
     def init(self, T, p_cutoff, hard_label=True):
+        self.num_ops = 3
+
         self.T = T
         self.p_cutoff = p_cutoff
         self.use_hard_label = hard_label
@@ -112,6 +114,11 @@ class AAAA(AlgorithmBase):
             
             if train_policy:
                 mag = self.policy(x_ulb_s)['logits']
+
+                indices = torch.argsort(torch.rand_like(mag), dim=-1)
+                mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False)
+                mag = mag * mask
+
                 x_adv = self.apply_augmentation(x_ulb_s[mask_smooth], mag[mask_smooth])
 
                 outs_x_adv = self.model(x_adv)
@@ -124,8 +131,12 @@ class AAAA(AlgorithmBase):
                 policy_loss = -pip + self.policy_lam * F.relu(constraint - self.bound).mean()
 
                 self.call_hook("policy_update", "PolicyUpdateHook", policy_loss)
+            else:
+                indices = torch.argsort(torch.rand(x_ulb_w.shape[0], len(self.augmenter.operations)), dim=-1)
+                mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False).to(x_ulb_w.device)
 
             mag = self.policy(x_ulb_s)['logits']
+            mag = mag * mask
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag)
 
             if self.use_cat:

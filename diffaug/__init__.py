@@ -36,21 +36,17 @@ class Augmenter(nn.Module):
         self.before_ops = before_ops
         self.after_ops = after_ops
 
-    def apply_operation(self, input: Tensor, mag: Tensor, sample: bool) -> Tensor:
+    def apply_operation(self, input: Tensor, mag: Tensor) -> Tensor:
         for i, op in enumerate(self.operations):
-            if sample:
-                rand = torch.rand_like(mag)
-                mask = (rand < 0.5).float()
-                mag = mag * mask
             input = op(input, mag[:, i])
         return input
 
-    def forward(self, input: Tensor, mag: Tensor, sample: bool) -> Tensor:
+    def forward(self, input: Tensor, mag: Tensor) -> Tensor:
         mag = mag.sigmoid()
         input = input * self.std + self.mean
         if self.before_ops is not None:
             input = self.before_ops(input)
-        input = self.apply_operation(input, mag, sample)
+        input = self.apply_operation(input, mag)
         if self.after_ops is not None:
             input = self.after_ops(input)
         input = (input - self.mean) / self.std
