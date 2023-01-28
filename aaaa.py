@@ -44,7 +44,7 @@ class AAAA(AlgorithmBase):
         
         self.warm_up_adv = 512
         self.bound = 0.002
-        self.tau = 0.1
+        self.tau = 0.9
         self.policy_lam = 1.0
         self.aaaa_threshold = 0.9
         self.mem_update = Variable(torch.zeros(self.args.ulb_dest_len, dtype=torch.bool, requires_grad=False).cuda(self.gpu))
