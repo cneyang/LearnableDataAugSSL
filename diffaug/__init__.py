@@ -42,7 +42,7 @@ class Augmenter(nn.Module):
         return input
 
     def forward(self, input: Tensor, mag: Tensor) -> Tensor:
-        mag = mag.sigmoid()
+        # mag = mag.sigmoid()
         input = input * self.std + self.mean
         if self.before_ops is not None:
             input = self.before_ops(input)

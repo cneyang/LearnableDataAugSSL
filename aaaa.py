@@ -113,7 +113,7 @@ class AAAA(AlgorithmBase):
             train_policy = mask_smooth.sum() > 0 and self.it > self.warm_up_adv
             
             if train_policy:
-                mag = self.policy(x_ulb_s)['logits']
+                mag = self.policy(x_ulb_s)['logits'].sigmoid()
 
                 indices = torch.argsort(torch.rand_like(mag), dim=-1)
                 mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False)
@@ -135,7 +135,7 @@ class AAAA(AlgorithmBase):
                 indices = torch.argsort(torch.rand(x_ulb_w.shape[0], len(self.augmenter.operations)), dim=-1)
                 mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False).to(x_ulb_w.device)
 
-            mag = self.policy(x_ulb_s)['logits']
+            mag = self.policy(x_ulb_s)['logits'].sigmoid()
             mag = mag * mask
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag)
 
