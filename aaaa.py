@@ -38,7 +38,7 @@ class AAAA(AlgorithmBase):
         self.init(T=args.T, p_cutoff=args.p_cutoff, hard_label=args.hard_label)
     
     def init(self, T, p_cutoff, hard_label=True):
-        self.num_ops = 3
+        self.num_ops = 5
 
         self.T = T
         self.p_cutoff = p_cutoff
@@ -145,7 +145,7 @@ class AAAA(AlgorithmBase):
                 logits_x_lb = outputs['logits'][:num_lb]
                 logits_x_ulb_w, logits_x_ulb_s = outputs['logits'][num_lb:].chunk(2)
             else:
-                outs_x_lb = self.model(x_lb) 
+                outs_x_lb = self.model(x_lb)
                 logits_x_lb = outs_x_lb['logits']
                 outs_x_ulb_s = self.model(x_ulb_s)
                 logits_x_ulb_s = outs_x_ulb_s['logits']
