@@ -9,7 +9,7 @@ from semilearn.algorithms.utils import ce_loss, consistency_loss, SSL_Argument, 
 from semilearn.core.utils import get_optimizer, get_cosine_schedule_with_warmup
 
 from utils import get_dataset
-from hook import PolicyUpdateHook, TimeConsistencyHook
+from hook import TimeConsistencyHook, PolicyUpdateHook, DiscriminatorUpdateHook
 from diffaug import Augmenter
 
 class AAAA(AlgorithmBase):
@@ -56,24 +56,26 @@ class AAAA(AlgorithmBase):
         self.augmenter = self.set_augmenter()
         # self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
         self.policy, self.policy_optimizer = self.set_policy()
+        self.discriminator, self.discriminator_optimizer = self.set_discriminator()
     
     def set_hooks(self):
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
         self.register_hook(TimeConsistencyHook(), "TimeConsistencyHook")
         self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
+        self.register_hook(DiscriminatorUpdateHook(), "DiscriminatorUpdateHook")
         super().set_hooks()
 
-    def set_dataset(self):
-        if self.rank != 0 and self.distributed:
-            torch.distributed.barrier()
-        dataset_dict = get_dataset(self.args, self.algorithm, self.args.dataset, self.args.num_labels, self.args.num_classes, self.args.data_dir)
-        self.args.ulb_dest_len = len(dataset_dict['train_ulb']) if dataset_dict['train_ulb'] is not None else 0
-        self.args.lb_dest_len = len(dataset_dict['train_lb'])
-        self.print_fn("unlabeled data number: {}, labeled data number {}".format(self.args.ulb_dest_len, self.args.lb_dest_len))
-        if self.rank == 0 and self.distributed:
-            torch.distributed.barrier()
-        return dataset_dict
+    # def set_dataset(self):
+    #     if self.rank != 0 and self.distributed:
+    #         torch.distributed.barrier()
+    #     dataset_dict = get_dataset(self.args, self.algorithm, self.args.dataset, self.args.num_labels, self.args.num_classes, self.args.data_dir)
+    #     self.args.ulb_dest_len = len(dataset_dict['train_ulb']) if dataset_dict['train_ulb'] is not None else 0
+    #     self.args.lb_dest_len = len(dataset_dict['train_lb'])
+    #     self.print_fn("unlabeled data number: {}, labeled data number {}".format(self.args.ulb_dest_len, self.args.lb_dest_len))
+    #     if self.rank == 0 and self.distributed:
+    #         torch.distributed.barrier()
+    #     return dataset_dict
 
     def set_policy(self):
         policy = self.net_builder(num_classes=len(self.augmenter.operations))
@@ -82,6 +84,11 @@ class AAAA(AlgorithmBase):
                                                     self.num_train_iter // self.args.d_steps,
                                                     self.args.num_warmup_iter)
         return policy, optimizer#, scheduler
+
+    def set_discriminator(self):
+        discriminator = self.net_builder(num_classes=1)
+        optimizer = get_optimizer(discriminator)
+        return discriminator, optimizer
 
     def set_augmenter(self):
         mean, std = self.dataset_dict['mean'], self.dataset_dict['std']
@@ -111,22 +118,39 @@ class AAAA(AlgorithmBase):
             train_policy = mask_smooth.sum() > 0 and self.it > self.warm_up_adv
             
             if train_policy:
-                mag = self.policy(x_ulb_s)['logits']
-                x_adv = self.apply_augmentation(x_ulb_s[mask_smooth], mag[mask_smooth])
+                mag = self.policy(x_ulb_w)['logits']
+                x_adv = self.apply_augmentation(x_ulb_w[mask_smooth], mag[mask_smooth])
+                batch_size = x_adv.size(0)
 
-                outs_x_adv = self.model(x_adv)
-                logits_adv, feats_adv = outs_x_adv['logits'], outs_x_adv['feats']
-                probs_adv = torch.softmax(logits_adv / self.T, dim=-1)
-                y_adv = torch.log(torch.gather(probs_adv, 1, targets_ulb_w[mask_smooth].view(-1, 1)).squeeze(dim=1))
+                valid = torch.cuda.FloatTensor(batch_size, 1).fill_(1.0)
+                fake = torch.cuda.FloatTensor(batch_size, 1).fill_(0.0)
 
-                pip = (self.normalize_flatten_features(feats_adv) - feats[mask_smooth]).norm(dim=1).mean()
-                constraint = y_ulb_w[mask_smooth] - y_adv
-                policy_loss = -pip + self.policy_lam * F.relu(constraint - self.bound).mean()
+                fake_pred = self.discriminator(x_adv)
 
-                self.call_hook("policy_update", "PolicyUpdateHook", policy_loss)
+                adv_loss = F.binary_cross_entropy_with_logits(fake_pred, valid)
 
-            mag = self.policy(x_ulb_s)['logits']
-            x_ulb_s = self.apply_augmentation(x_ulb_s, mag)
+                self.discriminator_optimizer.zero_grad()
+
+                fake_pred = self.discriminator(x_adv)
+                real_pred = self.discriminator(x_ulb_s[mask_smooth])
+
+                d_loss = F.binary_cross_entropy_with_logits(torch.cat((real_pred, fake_pred)), torch.cat((valid, fake)))
+
+                # outs_x_adv = self.model(x_adv)
+                # logits_adv, feats_adv = outs_x_adv['logits'], outs_x_adv['feats']
+                # probs_adv = torch.softmax(logits_adv / self.T, dim=-1)
+                # y_adv = torch.log(torch.gather(probs_adv, 1, targets_ulb_w[mask_smooth].view(-1, 1)).squeeze(dim=1))
+
+                # pip = (self.normalize_flatten_features(feats_adv) - feats[mask_smooth]).norm(dim=1).mean()
+                # constraint = y_ulb_w[mask_smooth] - y_adv
+                # policy_loss = -pip + self.policy_lam * F.relu(constraint - self.bound).mean()
+
+                # self.call_hook("policy_update", "PolicyUpdateHook", policy_loss)
+                self.call_hook("discriminator_update", "DiscriminatorUpdateHook", d_loss)
+                self.call_hook("policy_update", "PolicyUpdateHook", adv_loss)
+
+            mag = self.policy(x_ulb_w)['logits']
+            x_ulb_s = self.apply_augmentation(x_ulb_w, mag)
 
             if self.use_cat:
                 inputs = torch.cat((x_lb, x_ulb_w, x_ulb_s))

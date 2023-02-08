@@ -30,6 +30,21 @@ class PolicyUpdateHook(Hook):
 
         algorithm.policy_optimizer.zero_grad()
 
+class DiscriminatorUpdateHook(Hook):
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def discriminator_update(self, algorithm, loss):
+        if algorithm.use_amp:
+            algorithm.loss_scaler.scale(loss).backward()
+            algorithm.loss_scaler.step(algorithm.discriminator_optimizer)
+            algorithm.loss_scaler.update()
+        else:
+            loss.backward()
+            algorithm.discriminator_optimizer.step()
+
+        algorithm.discriminator_optimizer.zero_grad()
+
 class AdversarialAttackHook(Hook):
     def __init__(self) -> None:
         super().__init__()
