@@ -49,11 +49,6 @@ class AAAA(AlgorithmBase):
         self.tau = 0.1
         self.policy_lam = 1.0
         self.aaaa_threshold = 0.9
-        self.mem_update = Variable(torch.zeros(self.args.ulb_dest_len, dtype=torch.bool, requires_grad=False).cuda(self.gpu))
-        self.mem_logits = Variable(torch.ones([self.args.ulb_dest_len, self.num_classes], dtype=torch.int64, requires_grad=False).cuda(self.gpu) + 0.01)
-        # time consistency
-        self.mem_tc = Variable(torch.zeros(self.args.ulb_dest_len, requires_grad=False).cuda(self.gpu))
-        self.threshold = 1
 
         self.augmenter = self.set_augmenter()
         # self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
@@ -62,7 +57,6 @@ class AAAA(AlgorithmBase):
     def set_hooks(self):
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
-        self.register_hook(TimeConsistencyHook(), "TimeConsistencyHook")
         self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
         super().set_hooks()
 
@@ -98,8 +92,6 @@ class AAAA(AlgorithmBase):
 
         # inference and calculate sup/unsup losses
         with self.amp_cm():
-            self.call_hook("memory_update", "TimeConsistencyHook")
-
             with torch.no_grad():
                 outs_x_ulb_w = self.model(x_ulb_w)
                 _, targets_ulb_w = outs_x_ulb_w['logits'].max(dim=1)
@@ -107,10 +99,7 @@ class AAAA(AlgorithmBase):
                 probs_x_ulb_w = F.softmax(outs_x_ulb_w['logits'] / self.T, dim=-1)
                 y_ulb_w = torch.log(torch.gather(probs_x_ulb_w, 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
 
-                a_t = F.kl_div(self.mem_logits[idx_ulb].log(), probs_x_ulb_w, reduction='none').sum(dim=1)
-                mask_smooth = (self.mem_tc[idx_ulb]).lt(self.threshold)
-
-            train_policy = mask_smooth.sum() > 0 and self.it > self.warm_up_adv
+            train_policy = self.it > self.warm_up_adv
             
             if train_policy:
                 mag = self.policy(x_ulb_s)['logits'].sigmoid()
@@ -119,15 +108,15 @@ class AAAA(AlgorithmBase):
                 mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False)
                 mag = mag * mask
 
-                x_adv = self.apply_augmentation(x_ulb_s[mask_smooth], mag[mask_smooth])
+                x_adv = self.apply_augmentation(x_ulb_s, mag)
 
                 outs_x_adv = self.model(x_adv)
                 logits_adv, feats_adv = outs_x_adv['logits'], outs_x_adv['feats']
                 probs_adv = torch.softmax(logits_adv / self.T, dim=-1)
-                y_adv = torch.log(torch.gather(probs_adv, 1, targets_ulb_w[mask_smooth].view(-1, 1)).squeeze(dim=1))
+                y_adv = torch.log(torch.gather(probs_adv, 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
 
-                pip = (self.normalize_flatten_features(feats_adv) - feats[mask_smooth]).norm(dim=1).mean()
-                constraint = y_ulb_w[mask_smooth] - y_adv
+                pip = (self.normalize_flatten_features(feats_adv) - feats).norm(dim=1).mean()
+                constraint = y_ulb_w - y_adv
                 policy_loss = -pip + self.policy_lam * F.relu(constraint - self.bound).mean()
 
                 self.call_hook("policy_update", "PolicyUpdateHook", policy_loss)
@@ -178,26 +167,8 @@ class AAAA(AlgorithmBase):
 
             total_loss = sup_loss + self.lambda_u * unsup_loss
 
-            # pseudo_label = self.call_hook("gen_ulb_targets", "PseudoLabelingHook",
-            #                               logits=logits_x_ulb_w,
-            #                               use_hard_label=False,
-            #                               T=self.T,
-            #                               softmax=True)
-            # max_probs, targets_x_ulb_w = torch.max(pseudo_label, dim=-1)
-            # mask_aaaa = (max_probs[mask_smooth].ge(self.aaaa_threshold)).float()
-
-            # if train_policy:
-            #     outs_x_ulb_s = self.model(x_ulb_s[mask_smooth])
-            #     adv_loss = (F.cross_entropy(outs_x_ulb_s['logits'], targets_x_ulb_w[mask_smooth], reduction='none') * mask_aaaa).mean()
-            #     total_loss += adv_loss
-
         self.call_hook("param_update", "ParamUpdateHook", loss=total_loss)
         self.call_hook("policy_step", "PolicyUpdateHook")
-
-        with torch.no_grad():
-            self.mem_update[idx_ulb] = True
-            self.mem_tc[idx_ulb] = 0.01 * self.mem_tc[idx_ulb] - 0.99 * a_t
-            self.mem_logits[idx_ulb] = probs_x_ulb_w
 
         tb_dict = {}
         tb_dict['train/sup_loss'] = sup_loss.item()
@@ -206,7 +177,6 @@ class AAAA(AlgorithmBase):
         # tb_dict['train/adv_loss'] = adv_loss.item() if train_policy else 0
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
-        tb_dict['train/mask_smooth_ratio'] = mask_smooth.float().mean().item()
         return tb_dict
     
     def get_save_dict(self):
