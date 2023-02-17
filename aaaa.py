@@ -51,13 +51,11 @@ class AAAA(AlgorithmBase):
         self.aaaa_threshold = 0.9
 
         self.augmenter = self.set_augmenter()
-        # self.policy, self.policy_optimizer, self.policy_scheduler = self.set_policy()
         self.policy, self.policy_optimizer = self.set_policy()
     
     def set_hooks(self):
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
-        self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
         super().set_hooks()
 
     def set_dataset(self):
@@ -74,10 +72,7 @@ class AAAA(AlgorithmBase):
     def set_policy(self):
         policy = self.net_builder(num_classes=len(self.augmenter.operations))
         optimizer = get_optimizer(policy)
-        scheduler = get_cosine_schedule_with_warmup(optimizer,
-                                                    self.num_train_iter // self.args.d_steps,
-                                                    self.args.num_warmup_iter)
-        return policy, optimizer#, scheduler
+        return policy, optimizer
 
     def set_augmenter(self):
         mean, std = self.dataset_dict['mean'], self.dataset_dict['std']
@@ -92,38 +87,6 @@ class AAAA(AlgorithmBase):
 
         # inference and calculate sup/unsup losses
         with self.amp_cm():
-            with torch.no_grad():
-                outs_x_ulb_w = self.model(x_ulb_w)
-                _, targets_ulb_w = outs_x_ulb_w['logits'].max(dim=1)
-                feats = self.normalize_flatten_features(outs_x_ulb_w['feats'])
-                probs_x_ulb_w = F.softmax(outs_x_ulb_w['logits'] / self.T, dim=-1)
-                y_ulb_w = torch.log(torch.gather(probs_x_ulb_w, 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
-
-            train_policy = self.it > self.warm_up_adv
-            
-            if train_policy:
-                mag = self.policy(x_ulb_s)['logits'].sigmoid()
-
-                indices = torch.argsort(torch.rand_like(mag), dim=-1)
-                mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False)
-                mag = mag * mask
-
-                x_adv = self.apply_augmentation(x_ulb_s, mag)
-
-                outs_x_adv = self.model(x_adv)
-                logits_adv, feats_adv = outs_x_adv['logits'], outs_x_adv['feats']
-                probs_adv = torch.softmax(logits_adv / self.T, dim=-1)
-                y_adv = torch.log(torch.gather(probs_adv, 1, targets_ulb_w.view(-1, 1)).squeeze(dim=1))
-
-                pip = (self.normalize_flatten_features(feats_adv) - feats).norm(dim=1).mean()
-                constraint = y_ulb_w - y_adv
-                policy_loss = -pip + self.policy_lam * F.relu(constraint - self.bound).mean()
-
-                self.call_hook("policy_update", "PolicyUpdateHook", policy_loss)
-            else:
-                indices = torch.argsort(torch.rand(x_ulb_w.shape[0], len(self.augmenter.operations)), dim=-1)
-                mask = torch.where(indices < self.num_ops, 1.0, 0.0).requires_grad_(False).to(x_ulb_w.device)
-
             mag = self.policy(x_ulb_s)['logits'].sigmoid()
             mag = mag * mask
             x_ulb_s = self.apply_augmentation(x_ulb_s, mag)
@@ -173,8 +136,6 @@ class AAAA(AlgorithmBase):
         tb_dict = {}
         tb_dict['train/sup_loss'] = sup_loss.item()
         tb_dict['train/unsup_loss'] = unsup_loss.item()
-        tb_dict['train/policy_loss'] = policy_loss.item() if train_policy else 0
-        # tb_dict['train/adv_loss'] = adv_loss.item() if train_policy else 0
         tb_dict['train/total_loss'] = total_loss.item()
         tb_dict['train/mask_ratio'] = mask.float().mean().item()
         return tb_dict

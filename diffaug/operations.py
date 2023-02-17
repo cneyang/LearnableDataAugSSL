@@ -10,6 +10,7 @@ from torch import nn
 from torch.distributions import RelaxedBernoulli, Bernoulli, Uniform
 
 from .functional import (
+    identity,
     shear_x,
     shear_y,
     translate_x,
@@ -33,6 +34,7 @@ from .functional import (
 from .kernels import get_sharpness_kernel
 
 __all__ = [
+    "Identity",
     "ShearX",
     "ShearY",
     "TranslateX",
@@ -138,15 +140,8 @@ class _Operation(nn.Module):
                 if self.magnitude_range is not None:
                     mag = mag.clamp(*self.magnitude_range)
 
-                if self.flip_magnitude:
-                    # (0 or 1) -> (0 or 2) -> (-1 or 1)
-                    try:
-                        mag = Uniform(-mag, mag + 1e-8).rsample()
-                    except:
-                        print(mag)
-                        raise ValueError
-                else:
-                    mag = Uniform(0, mag + 1e-8).rsample()
+                if self.flip_magnitude and torch.randint(2, (1,)):
+                    mag *= -1
 
                 mag = mag * self.magnitude_scale
 
@@ -184,18 +179,41 @@ class _Operation(nn.Module):
 
 # Geometric Operations
 
+class Identity(_Operation):
+    def __init__(
+        self,
+        requires_magnitude: bool = False,
+        requires_probability: bool = True,
+        initial_magnitude: float = 0.5,
+        initial_probability: float = 0.5,
+        magnitude_range: Optional[Tuple[float, float]] = (0, 1),
+        probability_range: Optional[Tuple[float, float]] = (0, 1),
+        temperature: float = 0.1,
+        debug: bool = False,
+    ):
+        super(Identity, self).__init__(
+            identity,
+            requires_magnitude,
+            requires_probability,
+            initial_magnitude,
+            initial_probability,
+            magnitude_range,
+            probability_range,
+            temperature,
+            debug=debug,
+        )
 
 class ShearX(_Operation):
     def __init__(
         self,
         requires_magnitude: bool = True,
         requires_probability: bool = False,
-        initial_magnitude: float = 0.5,
+        initial_magnitude: float = 0.05,
         initial_probability: float = 0.5,
         magnitude_range: Optional[Tuple[float, float]] = (0, 1),
         probability_range: Optional[Tuple[float, float]] = (0, 1),
         temperature: float = 0.1,
-        magnitude_scale: float = 0.3,
+        magnitude_scale: float = 1.0,
         debug: bool = False,
     ):
         super(ShearX, self).__init__(
@@ -218,12 +236,12 @@ class ShearY(_Operation):
         self,
         requires_magnitude: bool = True,
         requires_probability: bool = False,
-        initial_magnitude: float = 0.5,
+        initial_magnitude: float = 0.05,
         initial_probability: float = 0.5,
         magnitude_range: Optional[Tuple[float, float]] = (0, 1),
         probability_range: Optional[Tuple[float, float]] = (0, 1),
         temperature: float = 0.1,
-        magnitude_scale: float = 0.3,
+        magnitude_scale: float = 1.0,
         debug: bool = False,
     ):
         super(ShearY, self).__init__(

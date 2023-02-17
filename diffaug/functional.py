@@ -12,6 +12,7 @@ from torch.nn import functional as F
 from .kernels import get_sharpness_kernel, get_gaussian_3x3kernel
 
 __all__ = [
+    "identity",
     "shear_x",
     "shear_y",
     "translate_x",
@@ -132,27 +133,31 @@ def _blur(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
 
 # Geometric transformation functions
 @tensor_function
+def identity(img: torch.Tensor, _=None) -> torch.Tensor:
+    return img
+
+@tensor_function
 def shear_x(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([mag, torch.zeros_like(mag)], dim=1)
-    return kornia.shear(img, mag, align_corners=True)
+    return kornia.shear(img, mag, mode='nearest', align_corners=True)
 
 
 @tensor_function
 def shear_y(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([torch.zeros_like(mag), mag], dim=1)
-    return kornia.shear(img, mag, align_corners=True)
+    return kornia.shear(img, mag, mode='nearest', align_corners=True)
 
 
 @tensor_function
 def translate_x(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([mag * img.size(-1), torch.zeros_like(mag)], dim=1)
-    return kornia.translate(img, mag, align_corners=True)
+    return kornia.translate(img, mag, mode='nearest', align_corners=True)
 
 
 @tensor_function
 def translate_y(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = torch.stack([torch.zeros_like(mag), mag * img.size(-2)], dim=1)
-    return kornia.translate(img, mag, align_corners=True)
+    return kornia.translate(img, mag, mode='nearest', align_corners=True)
 
 
 @tensor_function
@@ -167,7 +172,7 @@ def vflip(img: torch.Tensor, _=None) -> torch.Tensor:
 
 @tensor_function
 def rotate(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
-    return kornia.rotate(img, mag, align_corners=True)
+    return kornia.rotate(img, mag, mode='nearest', align_corners=True)
 
 
 # Color transformation functions
@@ -181,7 +186,7 @@ def invert(img: torch.Tensor, _=None) -> torch.Tensor:
 @tensor_function
 def solarize(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mag = mag.view(-1, 1, 1, 1)
-    return ste(torch.where(img < mag, img, 1 - img), mag)
+    return ste(torch.where(img <= mag, img, 1 - img), mag)
 
 
 @tensor_function
@@ -189,8 +194,8 @@ def posterize(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     # mag: 0 to 1
     mag = mag.view(-1, 1, 1, 1)
     with torch.no_grad():
-        shift = ((1 - mag) * 8).long()
-        shifted = (img.mul(255).long() << shift) >> shift
+        shift = (mag * 8).byte()
+        shifted = (img.mul(255).byte() >> shift) << shift
     return ste(shifted.float() / 255, mag)
 
 
@@ -204,7 +209,7 @@ def contrast(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     mean = (
         _gray(img * 255).flatten(1).mean(dim=1).add(0.5).floor().view(-1, 1, 1, 1) / 255
     )
-    return _blend_image(img, mean, 1 - mag)
+    return _blend_image(img, mean, 1 + mag)
 
 
 @tensor_function
@@ -226,13 +231,13 @@ def auto_contrast(img: torch.Tensor, _=None) -> torch.Tensor:
 @tensor_function
 def saturate(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     # a.k.a. color
-    return _blend_image(img, _gray(img), 1 - mag)
+    return _blend_image(img, _gray(img), 1 + mag)
 
 
 @tensor_function
 def brightness(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     # mag: -1 to 1
-    return _blend_image(img, torch.zeros_like(img), 1 - mag)
+    return _blend_image(img, torch.zeros_like(img), 1 + mag)
 
 
 @tensor_function
@@ -285,7 +290,7 @@ def sharpness(
 ) -> torch.Tensor:
     if kernel is None:
         kernel = get_sharpness_kernel(img.device)
-    return _blend_image(img, _blur(img, kernel), 1 - mag)
+    return _blend_image(img, _blur(img, kernel), 1 + mag)
 
 
 @tensor_function
