@@ -12,14 +12,14 @@ class Augmenter(nn.Module):
         self.operations = nn.ModuleList(
             [
                 # what more...?
-                Identity(),
-                ShearX(),
-                ShearY(),
-                TranslateX(),
+                # Identity(),
+                ShearX(magnitude_scale=0.15),
+                ShearY(magnitude_scale=0.15),
+                TranslateX(magnitude_scale=0.2265),
                 # TranslateX(magnitude_scale=0.3),
-                TranslateY(),
+                TranslateY(magnitude_scale=0.2265),
                 # TranslateY(magnitude_scale=0.3),
-                Rotate(),
+                Rotate(magnitude_scale=15.0),
                 Brightness(),
                 # Brightness(magnitude_range=(0.05, 0.95)),
                 Saturate(),

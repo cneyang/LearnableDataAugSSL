@@ -185,6 +185,7 @@ def invert(img: torch.Tensor, _=None) -> torch.Tensor:
 
 @tensor_function
 def solarize(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
+    mag = 1 - mag
     mag = mag.view(-1, 1, 1, 1)
     return ste(torch.where(img <= mag, img, 1 - img), mag)
 
@@ -194,7 +195,7 @@ def posterize(img: torch.Tensor, mag: torch.Tensor) -> torch.Tensor:
     # mag: 0 to 1
     mag = mag.view(-1, 1, 1, 1)
     with torch.no_grad():
-        shift = (mag * 8).byte()
+        shift = mag.round().byte()
         shifted = (img.mul(255).byte() >> shift) << shift
     return ste(shifted.float() / 255, mag)
 

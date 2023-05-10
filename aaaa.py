@@ -56,6 +56,7 @@ class AAAA(AlgorithmBase):
     def set_hooks(self):
         self.register_hook(PseudoLabelingHook(), "PseudoLabelingHook")
         self.register_hook(FixedThresholdingHook(), "MaskingHook")
+        self.register_hook(PolicyUpdateHook(), "PolicyUpdateHook")
         super().set_hooks()
 
     def set_dataset(self):
@@ -82,7 +83,7 @@ class AAAA(AlgorithmBase):
     def apply_augmentation(self, x, mag):
         return self.augmenter(x, mag)
         
-    def train_step(self, x_lb, y_lb, idx_ulb, x_ulb_w, x_ulb_s):
+    def train_step(self, x_lb, y_lb, x_ulb_w, x_ulb_s):
         num_lb = y_lb.shape[0]
 
         # inference and calculate sup/unsup losses

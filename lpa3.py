@@ -42,7 +42,7 @@ class LPA3(AlgorithmBase):
 
         self.warm_up_adv = 512
         self.bound = 0.002
-        self.tau = 0.1
+        self.tau = 0.9
         self.attack_iters = 5
         self.attack_lam = 1.0
         self.lpa3_threshold = 0.9
